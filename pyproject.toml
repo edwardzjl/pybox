@@ -1,0 +1,88 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pppybox"
+dynamic = ["version"]
+description = ''
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+keywords = []
+authors = [
+  { name = "Junlin Zhou", email = "jameszhou2108@hotmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+  "aiohttp[speedups]>=3.9.3",
+  "python-dotenv>=1",
+  "pydantic>=2",
+  "requests>=2",
+  "websockets>=12",
+]
+
+[project.optional-dependencies]
+local = [
+  # kernel dependencies
+  "ipython>=8.18.1",
+  "ipykernel>=6.26.0",
+  "jupyter-client>=8.6.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/edwardzjl/pybox#readme"
+Issues = "https://github.com/edwardzjl/pybox/issues"
+Source = "https://github.com/edwardzjl/pybox"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pybox"]
+
+[tool.hatch.version]
+path = "src/pybox/__about__.py"
+
+[[tool.hatch.envs.hatch-test.matrix]]
+feature = ["local"]
+
+[tool.hatch.envs.hatch-test]
+parallel = true
+extra-dependencies = [
+  "pppybox[local]",
+  "pytest-asyncio",
+]
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/pybox tests}"
+
+[tool.coverage.run]
+source_pkgs = ["pybox", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/pybox/__about__.py",
+]
+
+[tool.coverage.paths]
+pybox = ["src/pybox", "*/pybox/src/pybox"]
+tests = ["tests", "*/pybox/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
