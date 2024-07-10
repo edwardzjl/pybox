@@ -63,7 +63,7 @@ def test_set_cwd(local_manager: LocalPyBoxManager):
     test_code = "import os\nprint(os.getcwd())"
     out = kernel.run(code=test_code)
 
-    assert os.path.expanduser("~") + "\n" == out.content
+    assert os.path.expanduser("~") + "\n" == out.text
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_set_cwd_async(local_manager: LocalPyBoxManager):
     test_code = "import os\nprint(os.getcwd())"
     out = await kernel.arun(code=test_code)
 
-    assert os.path.expanduser("~") + "\n" == out.content
+    assert os.path.expanduser("~") + "\n" == out.text
 
 
 @pytest.fixture
@@ -89,8 +89,7 @@ def test_code_execute(local_box: LocalPyBox):
     test_code = "print('test')"
     out = local_box.run(code=test_code)
 
-    assert out.type == "stdout"
-    assert out.content == "test\n"
+    assert out.text == "test\n"
 
 
 @pytest.mark.asyncio
@@ -98,8 +97,7 @@ async def test_code_execute_async(local_box: LocalPyBox):
     test_code = "print('test')"
     out = await local_box.arun(code=test_code)
 
-    assert out.type == "stdout"
-    assert out.content == "test\n"
+    assert out.text == "test\n"
 
 
 def test_variable_reuse(local_box: LocalPyBox):
@@ -110,7 +108,7 @@ print(a)"""
 print(a)"""
     out = local_box.run(code=code_round2)
 
-    assert out.content == "2\n"
+    assert out.text == "2\n"
 
 
 @pytest.mark.asyncio
@@ -122,7 +120,7 @@ print(a)"""
 print(a)"""
     out = await local_box.arun(code=code_round2)
 
-    assert out.content == "2\n"
+    assert out.text == "2\n"
 
 
 def test_print_multi_line(local_box: LocalPyBox):
@@ -131,7 +129,7 @@ print(a)
 print(a)"""
     out = local_box.run(code=code)
 
-    assert out.content == "1\n1\n"
+    assert out.text == "1\n1\n"
 
 
 @pytest.mark.asyncio
@@ -141,7 +139,7 @@ print(a)
 print(a)"""
     out = await local_box.arun(code=code)
 
-    assert out.content == "1\n1\n"
+    assert out.text == "1\n1\n"
 
 
 def test_execute_exception(local_box: LocalPyBox):

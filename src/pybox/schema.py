@@ -29,14 +29,12 @@ class CodeExecutionError(RuntimeError):
 
 
 class PyBoxOut(BaseModel):
-    type: str
-    """Content type"""
-    content: str
+    data: dict
 
-
-class KernelNotFoundError(RuntimeError):
-    def __init__(self, kernel_id: str):
-        super().__init__(f"Kernel not found: {kernel_id}")
+    @property
+    def text(self) -> str:
+        """A helper property to get the text content of the output."""
+        return self.data.get("text/plain", "")
 
 
 class CreateKernelRequest(BaseModel):
