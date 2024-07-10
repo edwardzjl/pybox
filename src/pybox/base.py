@@ -91,3 +91,4 @@ class BasePyBoxManager(ABC):
         **kwargs,
     ) -> None:
         """Shutdown the kernel."""
+        self.shutdown(kernel_id=kernel_id, **kwargs)
