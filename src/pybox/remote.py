@@ -212,7 +212,7 @@ class RemotePyBox(BasePyBox):
                 # And we ignored 1 message that I did not find too much related to the above 2 messages
 
 
-class RemotePyboxManager(BasePyBoxManager):
+class RemotePyBoxManager(BasePyBoxManager):
     def __init__(
         self,
         host: str,

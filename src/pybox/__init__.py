@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pybox.local import LocalPyBox, LocalPyBoxManager
-from pybox.remote import RemotePyBox, RemotePyboxManager
+from pybox.remote import RemotePyBox, RemotePyBoxManager
 from pybox.schema import CodeExecutionError
 
 __all__ = [
@@ -11,5 +11,5 @@ __all__ = [
     "LocalPyBox",
     "LocalPyBoxManager",
     "RemotePyBox",
-    "RemotePyboxManager",
+    "RemotePyBoxManager",
 ]
