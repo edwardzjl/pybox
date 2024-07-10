@@ -4,7 +4,7 @@
 
 from pybox.local import LocalPyBox, LocalPyBoxManager
 from pybox.remote import RemotePyBox, RemotePyBoxManager
-from pybox.schema import CodeExecutionError
+from pybox.schema import CodeExecutionError, PyBoxOut
 
 __all__ = [
     "CodeExecutionError",
@@ -12,4 +12,5 @@ __all__ = [
     "LocalPyBoxManager",
     "RemotePyBox",
     "RemotePyBoxManager",
+    "PyBoxOut",
 ]
