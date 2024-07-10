@@ -245,6 +245,9 @@ class RemotePyBoxManager(BasePyBoxManager):
                 # kernel already exists, in which case the `kernel_id` must not be None
                 # enterprise gateway does not provide a good response code
                 response = requests.get(urljoin(self.host, f"/api/kernels/{kernel_id}"), timeout=60)
+                if not response.ok:
+                    error_msg = f"Error starting kernel: {response.status_code}\n{response.content}"
+                    raise RuntimeError(error_msg)
             else:
                 error_msg = f"Error starting kernel: {response.status_code}\n{response.content}"
                 raise RuntimeError(error_msg)
@@ -273,17 +276,19 @@ class RemotePyBoxManager(BasePyBoxManager):
         _body = kernel_request.model_dump()
         logger.debug("Starting kernel with payload %s", _body)
         async with aiohttp.ClientSession(self.host) as session, session.post("/api/kernels", json=_body) as response:
+            resp_text = await response.text()
             if not response.ok:
-                if "Kernel already exists:" in response.text:
+                if "Kernel already exists:" in resp_text:
                     # kernel already exists, in which case the `kernel_id` must not be None
                     # enterprise gateway does not provide a good response code
                     async with session.get(f"/api/kernels/{kernel_id}") as resp:
                         resp_text = await resp.text()
+                        if not resp.ok:
+                            error_msg = f"Error starting kernel: {resp.status}\n{resp.content}"
+                            raise RuntimeError(error_msg)
                 else:
                     error_msg = f"Error starting kernel: {response.status}\n{response.content}"
                     raise RuntimeError(error_msg)
-            else:
-                resp_text = await response.text()
         kernel = Kernel.model_validate_json(resp_text)
         box = RemotePyBox(kernel, self.get_ws_url(kernel.id))
         try:
