@@ -230,13 +230,12 @@ class RemotePyBoxManager(BasePyBoxManager):
         self,
         kernel_id: str | None = None,
         cwd: str | None = None,
-        **kwargs,
     ) -> RemotePyBox:
         env = self.kernel_env.copy()
         if kernel_id:
             env["KERNEL_ID"] = kernel_id
         if cwd:
-            env["KERNEL_WORKING_DIR"] = kwargs.pop("cwd")
+            env["KERNEL_WORKING_DIR"] = cwd
         kernel_request = CreateKernelRequest(env=env)
         _body = kernel_request.model_dump()
         logger.debug("Starting kernel with payload %s", _body)
@@ -264,13 +263,12 @@ class RemotePyBoxManager(BasePyBoxManager):
         self,
         kernel_id: str | None = None,
         cwd: str | None = None,
-        **kwargs,
     ) -> RemotePyBox:
         env = self.kernel_env.copy()
         if kernel_id:
             env["KERNEL_ID"] = kernel_id
         if cwd:
-            env["KERNEL_WORKING_DIR"] = kwargs.pop("cwd")
+            env["KERNEL_WORKING_DIR"] = cwd
         kernel_request = CreateKernelRequest(env=env)
         _body = kernel_request.model_dump()
         logger.debug("Starting kernel with payload %s", _body)
