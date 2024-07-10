@@ -5,7 +5,7 @@ from datetime import datetime  # noqa: TCH003
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from pybox.utils import clean_ansi_codes
 
@@ -149,14 +149,8 @@ class ErrorContent(BaseModel):
     traceback: list[str]
 
 
-class ExecutionResultData(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-    text_plain: str | None = Field(alias="text/plain", default=None)
-    image_png: str | None = Field(alias="image/png", default=None)
-
-
 class ExecutionResultContent(BaseModel):
-    data: ExecutionResultData
+    data: dict
     metadata: dict
     execution_count: int | None = 0
     transient: dict | None = None
