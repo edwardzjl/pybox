@@ -65,17 +65,13 @@ class RemotePyBox(BasePyBox):
                 elif response.msg_type in ["execute_result", "display_data"]:
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#display-data>
-                    # TODO: I can definitly do better here
-                    if response.content.data.image_png:
-                        result = PyBoxOut(type="image/png", content=response.content.data.image_png)
-                    elif response.content.data.text_plain:
-                        result = PyBoxOut(type="text/plain", content=response.content.data.text_plain)
+                    result = PyBoxOut(data=response.content.data)
                 elif response.msg_type == "stream":
                     # 'stream' is treated as second-class citizen. If 'execute_result', 'display_data' or 'execute_reply.error' exists,
                     # We ignore the 'stream' message. If only all other messages has nothing to display, we will use the 'stream' message.
                     # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc>
                     if not result:
-                        result = PyBoxOut(type=response.content.name, content=response.content.text)
+                        result = PyBoxOut(data={"text/plain": response.content.text})
                 elif response.msg_type == "status":  # noqa: SIM102
                     # According to the document <https://jupyter-client.readthedocs.io/en/latest/messaging.html#request-reply>
                     # The idle message will be published after processing the request and publishing associated IOPub messages
@@ -119,17 +115,13 @@ class RemotePyBox(BasePyBox):
                     elif response.msg_type in ["execute_result", "display_data"]:
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#display-data>
-                        # TODO: I can definitly do better here
-                        if response.content.data.image_png:
-                            result = PyBoxOut(type="image/png", content=response.content.data.image_png)
-                        elif response.content.data.text_plain:
-                            result = PyBoxOut(type="text/plain", content=response.content.data.text_plain)
+                        result = PyBoxOut(data=response.content.data)
                     elif response.msg_type == "stream":
                         # 'stream' is treated as second-class citizen. If 'execute_result', 'display_data' or 'execute_reply.error' exists,
                         # We ignore the 'stream' message. If only all other messages has nothing to display, we will use the 'stream' message.
                         # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc>
                         if not result:
-                            result = PyBoxOut(type=response.content.name, content=response.content.text)
+                            result = PyBoxOut(data={"text/plain": response.content.text})
                     elif response.msg_type == "status":  # noqa: SIM102
                         # According to the document <https://jupyter-client.readthedocs.io/en/latest/messaging.html#request-reply>
                         # The idle message will be published after processing the request and publishing associated IOPub messages
