@@ -55,7 +55,11 @@ class RemotePyBox(BasePyBox):
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
                     # error execution may have extra messages, for example a stream std error
                     if response.content.status == "error":
-                        raise CodeExecutionError(response.content.traceback)
+                        raise CodeExecutionError(
+                            ename=response.content.ename,
+                            evalue=response.content.evalue,
+                            traceback=response.content.traceback,
+                        )
 
                     # For status != "error" we may want to extract the result from "stream" or "execute_result"
                 elif response.msg_type in ["execute_result", "display_data"]:
@@ -106,7 +110,11 @@ class RemotePyBox(BasePyBox):
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
                         # error execution may have extra messages, for example a stream std error
                         if response.content.status == "error":
-                            raise CodeExecutionError(response.content.traceback)
+                            raise CodeExecutionError(
+                                ename=response.content.ename,
+                                evalue=response.content.evalue,
+                                traceback=response.content.traceback,
+                            )
                         # For status != "error" we may want to extract the result from "stream" or "execute_result"
                     elif response.msg_type in ["execute_result", "display_data"]:
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>

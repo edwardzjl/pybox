@@ -7,9 +7,25 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from pybox.utils import clean_ansi_codes
 
-# TODO: Maybe more error context can be added.
-class CodeExecutionError(RuntimeError): ...
+
+class CodeExecutionError(RuntimeError):
+    """This exception is raised when code execution fails."""
+
+    ename: str
+    evalue: str
+    traceback: list[str]
+
+    def __init__(self, ename, evalue, traceback, *args):
+        # TODO: Maybe I can simulate a traceback into super
+        super().__init__(evalue, *args)
+        self.ename = ename
+        self.evalue = evalue
+        self.traceback = traceback
+
+    def __str__(self) -> str:
+        return "\n".join([clean_ansi_codes(line) for line in self.traceback])
 
 
 class PyBoxOut(BaseModel):

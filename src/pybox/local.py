@@ -51,7 +51,11 @@ class LocalPyBox(BasePyBox):
                 # error execution may have extra messages, for example a stream std error
                 response = ExecutionResponse.model_validate(shell_msg)
                 if response.content.status == "error":
-                    raise CodeExecutionError(response.content.traceback)
+                    raise CodeExecutionError(
+                        ename=response.content.ename,
+                        evalue=response.content.evalue,
+                        traceback=response.content.traceback,
+                    )
             except queue.Empty:
                 logger.warning("Shell msg is empty.")
                 return None
@@ -129,7 +133,11 @@ class LocalPyBox(BasePyBox):
                 # error execution may have extra messages, for example a stream std error
                 response = ExecutionResponse.model_validate(shell_msg)
                 if response.content.status == "error":
-                    raise CodeExecutionError(response.content.traceback)
+                    raise CodeExecutionError(
+                        ename=response.content.ename,
+                        evalue=response.content.evalue,
+                        traceback=response.content.traceback,
+                    )
             except queue.Empty:
                 logger.warning("Shell msg is empty.")
                 return None
