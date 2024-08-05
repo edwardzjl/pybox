@@ -5,6 +5,8 @@ import queue
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from jupyter_client.asynchronous import AsyncKernelClient
+
 from pybox.base import BasePyBox, BasePyBoxManager
 from pybox.schema import (
     CodeExecutionError,
@@ -20,7 +22,6 @@ try:
     from jupyter_client.multikernelmanager import DuplicateKernelError
 
     if TYPE_CHECKING:
-        from jupyter_client.asynchronous import AsyncKernelClient
         from jupyter_client.blocking import BlockingKernelClient
 except ImportError:
     logger.warning(
@@ -236,7 +237,9 @@ class LocalPyBoxManager(BasePyBoxManager):
             # it's OK if the kernel already exists
             kid = kernel_id
         km = self.kernel_manager.get_kernel(kernel_id=kid)
-        return LocalPyBox(kernel_id=kid, client=km.client())
+        kernel_client = AsyncKernelClient()
+        kernel_client.load_connection_info(km.get_connection_info())
+        return LocalPyBox(kernel_id=kid, client=kernel_client)
 
     def shutdown(
         self,
