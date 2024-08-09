@@ -18,6 +18,7 @@ class KubePyBoxManager(BasePyBoxManager):
 
     def __init__(
         self,
+        *,
         incluster: bool,
         env_file: str | None = None,
         kernel_env: dict[str, Any] | None = None,

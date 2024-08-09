@@ -1,4 +1,3 @@
-from collections.abc import Iterator
 from uuid import uuid4
 
 import pytest
@@ -6,8 +5,8 @@ from pybox.kube import KubePyBoxManager
 
 
 @pytest.fixture(scope="module")
-def kube_manager() -> Iterator[KubePyBoxManager]:
-    _mng = KubePyBoxManager(
+def kube_manager() -> KubePyBoxManager:
+    return KubePyBoxManager(
         incluster=False,
         kernel_env={
             "KERNEL_USERNAME": "tablegpt",
@@ -52,12 +51,10 @@ def kube_manager() -> Iterator[KubePyBoxManager]:
             "KERNEL_IDLE_TIMEOUT": "1800",
         },
     )
-    yield _mng
 
 
 @pytest.mark.skip(reason="Start kernel cr need kubernetes environment")
 def test_start_with_user(kube_manager: KubePyBoxManager) -> None:
-
     kernel_id = str(uuid4())
     box = kube_manager.start(
         kernel_id=kernel_id,
@@ -69,7 +66,6 @@ def test_start_with_user(kube_manager: KubePyBoxManager) -> None:
 
 @pytest.mark.skip(reason="Start kernel cr need kubernetes environment")
 def test_start_without_user(kube_manager: KubePyBoxManager) -> None:
-
     kernel_id = str(uuid4())
     box = kube_manager.start(
         kernel_id=kernel_id,
