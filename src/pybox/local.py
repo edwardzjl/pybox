@@ -33,19 +33,19 @@ class LocalPyBox(BasePyBox):
         self.kernel_id = kernel_id
         self.client = client
 
-    def run(self, code: str) -> PyBoxOut | None:
+    def run(self, code: str, timeout: int = 60) -> PyBoxOut | None:
         if not self.client.channels_running:
             self.client.wait_for_ready()
 
         msg_id = self.client.execute(code)
-        self.__wait_for_execute_reply(msg_id)
-        return self.__get_kernel_output(msg_id)
+        self.__wait_for_execute_reply(msg_id, timeout=timeout)
+        return self.__get_kernel_output(msg_id, timeout=timeout)
 
-    def __wait_for_execute_reply(self, msg_id: str) -> ExecutionResponse | None:
+    def __wait_for_execute_reply(self, msg_id: str, **kwargs) -> ExecutionResponse | None:
         # wait for the "execute_reply"
         while True:
             try:
-                shell_msg = self.client.get_shell_msg(timeout=60)
+                shell_msg = self.client.get_shell_msg(**kwargs)
                 if (shell_msg["parent_header"]["msg_id"] != msg_id) or (shell_msg["msg_type"] != "execute_reply"):
                     continue
                 # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
@@ -58,12 +58,12 @@ class LocalPyBox(BasePyBox):
                         traceback=response.content.traceback,
                     )
             except queue.Empty:
-                logger.warning("Shell msg is empty.")
+                logger.warning("No shell message received.")
                 return None
             else:
                 return response
 
-    def __get_kernel_output(self, msg_id: str) -> PyBoxOut | None:
+    def __get_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut | None:
         """Retrieves output from a kernel.
 
         Args:
@@ -79,7 +79,7 @@ class LocalPyBox(BasePyBox):
         while True:
             # Poll the message
             try:
-                message = self.client.get_iopub_msg(timeout=60)
+                message = self.client.get_iopub_msg(**kwargs)
                 logger.debug("kernel execution message: [%s]", message)
                 response = ExecutionResponse.model_validate(message)
                 if response.parent_header.msg_id != msg_id:
@@ -106,23 +106,23 @@ class LocalPyBox(BasePyBox):
                     if response.content.execution_state == "idle":
                         break
             except queue.Empty:
-                logger.warning("Get iopub msg is empty.")
+                logger.warning("No iopub message received.")
                 break
         return result
 
-    async def arun(self, code: str) -> PyBoxOut | None:
+    async def arun(self, code: str, timeout: int = 60) -> PyBoxOut | None:
         if not self.client.channels_running:
             await self.client._async_wait_for_ready()  # noqa: SLF001
 
         msg_id = self.client.execute(code)
-        await self.__await_for_execute_reply(msg_id)
-        return await self.__aget_kernel_output(msg_id)
+        await self.__await_for_execute_reply(msg_id, timeout=timeout)
+        return await self.__aget_kernel_output(msg_id, timeout=timeout)
 
-    async def __await_for_execute_reply(self, msg_id: str) -> ExecutionResponse | None:
+    async def __await_for_execute_reply(self, msg_id: str, **kwargs) -> ExecutionResponse | None:
         while True:
             try:
                 shell_msg = await self.client._async_get_shell_msg(  # noqa: SLF001
-                    timeout=60
+                    **kwargs
                 )
                 if (shell_msg["parent_header"]["msg_id"] != msg_id) or (shell_msg["msg_type"] != "execute_reply"):
                     continue
@@ -136,12 +136,12 @@ class LocalPyBox(BasePyBox):
                         traceback=response.content.traceback,
                     )
             except queue.Empty:
-                logger.warning("Shell msg is empty.")
+                logger.warning("No shell message received.")
                 return None
             else:
                 return response
 
-    async def __aget_kernel_output(self, msg_id: str) -> PyBoxOut | None:
+    async def __aget_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut | None:
         """Retrieves output from a kernel asynchronously.
 
         Args:
@@ -158,7 +158,7 @@ class LocalPyBox(BasePyBox):
             # Poll the message
             try:
                 message = await self.client._async_get_iopub_msg(  # noqa: SLF001
-                    timeout=60
+                    **kwargs
                 )
                 logger.debug("kernel execution message: [%s]", message)
                 response = ExecutionResponse.model_validate(message)
@@ -186,7 +186,7 @@ class LocalPyBox(BasePyBox):
                     if response.content.execution_state == "idle":
                         break
             except queue.Empty:
-                logger.warning("Get iopub msg is empty.")
+                logger.warning("No iopub message received.")
                 break
         return result
 
