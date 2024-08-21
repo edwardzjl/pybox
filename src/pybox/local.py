@@ -5,6 +5,13 @@ import queue
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from jupyter_client import AsyncMultiKernelManager, MultiKernelManager
+from jupyter_client.multikernelmanager import DuplicateKernelError
+
+if TYPE_CHECKING:
+    from jupyter_client.asynchronous import AsyncKernelClient
+    from jupyter_client.blocking import BlockingKernelClient
+
 from pybox.base import BasePyBox, BasePyBoxManager
 from pybox.schema import (
     CodeExecutionError,
@@ -13,19 +20,6 @@ from pybox.schema import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-try:
-    from jupyter_client import AsyncMultiKernelManager, MultiKernelManager
-    from jupyter_client.multikernelmanager import DuplicateKernelError
-
-    if TYPE_CHECKING:
-        from jupyter_client.asynchronous import AsyncKernelClient
-        from jupyter_client.blocking import BlockingKernelClient
-except ImportError:
-    logger.warning(
-        "LocalKernelManager is not recommended for production usage.\nFor local development, please use `pip install pppybox[local]` to install related dependencies."
-    )
 
 
 class LocalPyBox(BasePyBox):
