@@ -28,8 +28,8 @@ async def test_start_async_w_id(local_manager: LocalPyBoxManager):
     box = await local_manager.astart(kernel_id)
 
     assert box.kernel_id == kernel_id
-    assert box.kernel_id in local_manager.kernel_manager
-    assert local_manager.kernel_manager.is_alive(box.kernel_id)
+    assert box.kernel_id in local_manager.async_kernel_manager
+    assert local_manager.async_kernel_manager.is_alive(box.kernel_id)
 
 
 def test_box_lifecycle(local_manager: LocalPyBoxManager):
@@ -47,12 +47,12 @@ def test_box_lifecycle(local_manager: LocalPyBoxManager):
 async def test_box_lifecycle_async(local_manager: LocalPyBoxManager):
     box = await local_manager.astart()
 
-    assert box.kernel_id in local_manager.kernel_manager
-    assert local_manager.kernel_manager.is_alive(box.kernel_id)
+    assert box.kernel_id in local_manager.async_kernel_manager
+    assert local_manager.async_kernel_manager.is_alive(box.kernel_id)
 
     await local_manager.ashutdown(box.kernel_id)
 
-    assert box.kernel_id not in local_manager.kernel_manager
+    assert box.kernel_id not in local_manager.async_kernel_manager
 
 
 def test_set_cwd(local_manager: LocalPyBoxManager):
