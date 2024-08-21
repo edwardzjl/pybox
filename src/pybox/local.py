@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 try:
-    from jupyter_client import MultiKernelManager
+    from jupyter_client import AsyncMultiKernelManager, MultiKernelManager
     from jupyter_client.multikernelmanager import DuplicateKernelError
 
     if TYPE_CHECKING:
@@ -192,12 +192,22 @@ class LocalPyBox(BasePyBox):
 
 
 class LocalPyBoxManager(BasePyBoxManager):
-    def __init__(self, kernel_manager: MultiKernelManager | None = None):
+    def __init__(
+        self,
+        kernel_manager: MultiKernelManager | None = None,
+        async_kernel_manager: AsyncMultiKernelManager | None = None,
+    ):
         if kernel_manager is None:
             self.kernel_manager = MultiKernelManager()
         else:
             self.kernel_manager = kernel_manager
+        if async_kernel_manager is None:
+            self.async_kernel_manager = AsyncMultiKernelManager()
+        else:
+            self.async_kernel_manager = async_kernel_manager
 
+    # TODO: I cannot use __del__ in async context
+    # maybe I shouldn't clean up the kernels in the __del__ method
     def __del__(self):
         """clean up all the kernels."""
         logger.info("Shutting down all kernels")
@@ -229,13 +239,11 @@ class LocalPyBoxManager(BasePyBoxManager):
             kernel_id = str(uuid4())
         logger.debug("Starting new kernel with ID %s", kernel_id)
         try:
-            kid = await self.kernel_manager._async_start_kernel(  # noqa: SLF001
-                kernel_id=kernel_id, **kwargs
-            )
+            kid = await self.async_kernel_manager.start_kernel(kernel_id=kernel_id, **kwargs)
         except DuplicateKernelError:
             # it's OK if the kernel already exists
             kid = kernel_id
-        km = self.kernel_manager.get_kernel(kernel_id=kid)
+        km = self.async_kernel_manager.get_kernel(kernel_id=kid)
         return LocalPyBox(kernel_id=kid, client=km.client())
 
     def shutdown(
@@ -260,9 +268,7 @@ class LocalPyBoxManager(BasePyBoxManager):
         restart: bool = False,
     ) -> None:
         try:
-            await self.kernel_manager._async_shutdown_kernel(  # noqa: SLF001
-                kernel_id=kernel_id, now=now, restart=restart
-            )
+            await self.async_kernel_manager.shutdown_kernel(kernel_id=kernel_id, now=now, restart=restart)
         except KeyError:
             logger.warning("kernel %s not found", kernel_id)
         else:
