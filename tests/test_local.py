@@ -170,3 +170,49 @@ async def test_not_output_async(local_box: LocalPyBox):
     test_code = "a = 1"
     res = await local_box.arun(code=test_code)
     assert res is None
+
+
+def test_execute_timeout(local_box: LocalPyBox):
+    timeout_code = """import time
+time.sleep(6)"""
+    with pytest.raises(CodeExecutionError) as exc_info:  # noqa: PT012
+        local_box.run(code=timeout_code, timeout=1)
+        assert exc_info.value.args[0] == "KeyboardInterrupt"
+
+
+@pytest.mark.asyncio
+async def test_execute_timeout_async(local_box: LocalPyBox):
+    timeout_code = """import time
+time.sleep(6)"""
+    with pytest.raises(CodeExecutionError) as exc_info:  # noqa: PT012
+        await local_box.arun(code=timeout_code, timeout=1)
+        assert exc_info.value.args[0] == "KeyboardInterrupt"
+
+
+def test_interrupt_kernel(local_box: LocalPyBox):
+    code = "a = 1"
+    local_box.run(code=code)
+
+    timeout_code = """import time
+time.sleep(6)"""
+    with pytest.raises(CodeExecutionError) as exc_info:  # noqa: PT012
+        local_box.run(code=timeout_code, timeout=1)
+        assert exc_info.value.args[0] == "KeyboardInterrupt"
+
+    res = local_box.run(code="print(a)")
+    assert res.text == "1\n"
+
+
+@pytest.mark.asyncio
+async def test_interrupt_kernel_async(local_box: LocalPyBox):
+    code = "a = 1"
+    await local_box.arun(code=code)
+
+    timeout_code = """import time
+time.sleep(10)"""
+    with pytest.raises(CodeExecutionError) as exc_info:  # noqa: PT012
+        await local_box.arun(code=timeout_code, timeout=1)
+        assert exc_info.value.args[0] == "KeyboardInterrupt"
+
+    res = await local_box.arun(code="print(a)")
+    assert res.text == "1\n"
