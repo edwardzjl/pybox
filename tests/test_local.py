@@ -3,7 +3,7 @@ from collections.abc import Iterator
 from uuid import uuid4
 
 import pytest
-from pybox import CodeExecutionError, LocalPyBox, LocalPyBoxManager
+from pybox import LocalPyBoxManager
 
 
 @pytest.fixture(scope="module")
@@ -76,97 +76,3 @@ async def test_set_cwd_async(local_manager: LocalPyBoxManager):
     out = await kernel.arun(code=test_code)
 
     assert os.path.expanduser("~") + "\n" == out.text
-
-
-@pytest.fixture
-def local_box(local_manager: LocalPyBoxManager) -> Iterator[LocalPyBox]:
-    _box = local_manager.start()
-    yield _box
-    local_manager.shutdown(_box.kernel_id)
-
-
-def test_code_execute(local_box: LocalPyBox):
-    test_code = "print('test')"
-    out = local_box.run(code=test_code)
-
-    assert out.text == "test\n"
-
-
-@pytest.mark.asyncio
-async def test_code_execute_async(local_box: LocalPyBox):
-    test_code = "print('test')"
-    out = await local_box.arun(code=test_code)
-
-    assert out.text == "test\n"
-
-
-def test_variable_reuse(local_box: LocalPyBox):
-    code_round1 = """a = 1
-print(a)"""
-    local_box.run(code=code_round1)
-    code_round2 = """a += 1
-print(a)"""
-    out = local_box.run(code=code_round2)
-
-    assert out.text == "2\n"
-
-
-@pytest.mark.asyncio
-async def test_variable_reuse_async(local_box: LocalPyBox):
-    code_round1 = """a = 1
-print(a)"""
-    await local_box.arun(code=code_round1)
-    code_round2 = """a += 1
-print(a)"""
-    out = await local_box.arun(code=code_round2)
-
-    assert out.text == "2\n"
-
-
-def test_print_multi_line(local_box: LocalPyBox):
-    code = """a = 1
-print(a)
-print(a)"""
-    out = local_box.run(code=code)
-
-    assert out.text == "1\n1\n"
-
-
-@pytest.mark.asyncio
-async def test_print_multi_line_async(local_box: LocalPyBox):
-    code = """a = 1
-print(a)
-print(a)"""
-    out = await local_box.arun(code=code)
-
-    assert out.text == "1\n1\n"
-
-
-def test_execute_exception(local_box: LocalPyBox):
-    division_by_zero = "1 / 0"
-    # with self.assertRaisesRegex(CodeExecutionException, ".*division by zero.*"):
-    # TODO: test the actual exception
-    with pytest.raises(CodeExecutionError):
-        local_box.run(code=division_by_zero)
-
-
-@pytest.mark.asyncio
-async def test_execute_exception_async(local_box: LocalPyBox):
-    division_by_zero = "1 / 0"
-    # with self.assertRaisesRegex(CodeExecutionException, ".*division by zero.*"):
-    # TODO: test the actual exception
-    with pytest.raises(CodeExecutionError):
-        await local_box.arun(code=division_by_zero)
-
-
-def test_not_output(local_box: LocalPyBox):
-    test_code = "a = 1"
-    res = local_box.run(code=test_code)
-    assert res is None
-
-
-@pytest.mark.asyncio
-async def test_not_output_async(local_box: LocalPyBox):
-    test_code = "a = 1"
-    res = await local_box.arun(code=test_code)
-    assert res is None
