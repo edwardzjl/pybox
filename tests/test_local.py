@@ -17,6 +17,13 @@ def local_manager() -> Iterator[LocalPyBoxManager]:
     _mng.kernel_manager.shutdown_all(now=True)
 
 
+@pytest_asyncio.fixture(scope="module")
+async def alocal_manager() -> AsyncIterator[LocalPyBoxManager]:
+    _mng = LocalPyBoxManager()
+    yield _mng
+    await _mng.async_kernel_manager.shutdown_all(now=True)
+
+
 def test_start_w_id(local_manager: LocalPyBoxManager):
     kernel_id = str(uuid4())
     box = local_manager.start(kernel_id)
@@ -27,13 +34,13 @@ def test_start_w_id(local_manager: LocalPyBoxManager):
 
 
 @pytest.mark.asyncio
-async def test_start_async_w_id(local_manager: LocalPyBoxManager):
+async def test_start_async_w_id(alocal_manager: LocalPyBoxManager):
     kernel_id = str(uuid4())
-    box = await local_manager.astart(kernel_id)
+    box = await alocal_manager.astart(kernel_id)
 
     assert box.kernel_id == kernel_id
-    assert box.kernel_id in local_manager.async_kernel_manager
-    assert await local_manager.async_kernel_manager.is_alive(box.kernel_id)
+    assert box.kernel_id in alocal_manager.async_kernel_manager
+    assert await alocal_manager.async_kernel_manager.is_alive(box.kernel_id)
 
 
 def test_box_lifecycle(local_manager: LocalPyBoxManager):
@@ -48,15 +55,15 @@ def test_box_lifecycle(local_manager: LocalPyBoxManager):
 
 
 @pytest.mark.asyncio
-async def test_box_lifecycle_async(local_manager: LocalPyBoxManager):
-    box = await local_manager.astart()
+async def test_box_lifecycle_async(alocal_manager: LocalPyBoxManager):
+    box = await alocal_manager.astart()
 
-    assert box.kernel_id in local_manager.async_kernel_manager
-    assert await local_manager.async_kernel_manager.is_alive(box.kernel_id)
+    assert box.kernel_id in alocal_manager.async_kernel_manager
+    assert await alocal_manager.async_kernel_manager.is_alive(box.kernel_id)
 
-    await local_manager.ashutdown(box.kernel_id)
+    await alocal_manager.ashutdown(box.kernel_id)
 
-    assert box.kernel_id not in local_manager.async_kernel_manager
+    assert box.kernel_id not in alocal_manager.async_kernel_manager
 
 
 def test_set_cwd(local_manager: LocalPyBoxManager):
@@ -71,10 +78,10 @@ def test_set_cwd(local_manager: LocalPyBoxManager):
 
 
 @pytest.mark.asyncio
-async def test_set_cwd_async(local_manager: LocalPyBoxManager):
+async def test_set_cwd_async(alocal_manager: LocalPyBoxManager):
     # even we don't set the cwd, it defaults to os.getcwd()
     # in order to test this is working, we need to change the cwd to a cross platform path
-    kernel = await local_manager.astart(cwd=os.path.expanduser("~"))
+    kernel = await alocal_manager.astart(cwd=os.path.expanduser("~"))
 
     test_code = "import os\nprint(os.getcwd())"
     out = await kernel.arun(code=test_code)
@@ -90,10 +97,10 @@ def local_box(local_manager: LocalPyBoxManager) -> Iterator[LocalPyBox]:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def local_box_async(local_manager: LocalPyBoxManager) -> AsyncIterator[LocalPyBox]:
-    _box = await local_manager.astart()
+async def local_box_async(alocal_manager: LocalPyBoxManager) -> AsyncIterator[LocalPyBox]:
+    _box = await alocal_manager.astart()
     yield _box
-    await local_manager.ashutdown(_box.kernel_id)
+    await alocal_manager.ashutdown(_box.kernel_id)
 
 
 def test_code_execute(local_box: LocalPyBox):
