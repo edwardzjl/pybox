@@ -119,9 +119,7 @@ class LocalPyBox(BasePyBox):
     async def __await_for_execute_reply(self, msg_id: str, **kwargs) -> ExecutionResponse | None:
         while True:
             try:
-                shell_msg = await self.client._async_get_shell_msg(  # noqa: SLF001
-                    **kwargs
-                )
+                shell_msg = await self.client.get_shell_msg(**kwargs)
                 # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
                 # error execution may have extra messages, for example a stream std error
                 if (shell_msg["parent_header"]["msg_id"] != msg_id) or (shell_msg["msg_type"] != "execute_reply"):
@@ -148,9 +146,7 @@ class LocalPyBox(BasePyBox):
         while True:
             # Poll the message
             try:
-                message = await self.client._async_get_iopub_msg(  # noqa: SLF001
-                    **kwargs
-                )
+                message = await self.client.get_iopub_msg(**kwargs)
                 logger.debug("kernel execution message: [%s]", message)
                 response = ExecutionResponse.model_validate(message)
                 if response.parent_header.msg_id != msg_id:
