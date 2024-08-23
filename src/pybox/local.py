@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import platform
 import queue
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -20,6 +21,8 @@ from pybox.schema import (
 )
 
 logger = logging.getLogger(__name__)
+
+SYSTEM_PLATFORM = platform.system()
 
 
 class LocalPyBox(BasePyBox):
@@ -116,15 +119,13 @@ class LocalPyBox(BasePyBox):
     async def __await_for_execute_reply(self, msg_id: str, **kwargs) -> ExecutionResponse | None:
         while True:
             try:
-                shell_msg = await self.client._async_get_shell_msg(  # noqa: SLF001
-                    **kwargs
-                )
+                shell_msg = await self.client.get_shell_msg(**kwargs)
                 # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
                 # error execution may have extra messages, for example a stream std error
                 if (shell_msg["parent_header"]["msg_id"] != msg_id) or (shell_msg["msg_type"] != "execute_reply"):
                     continue
             except queue.Empty:
-                self.__interrupt_kernel()
+                await self.__ainterrupt_kernel()
                 return None
             return ExecutionResponse.model_validate(shell_msg)
 
@@ -145,9 +146,7 @@ class LocalPyBox(BasePyBox):
         while True:
             # Poll the message
             try:
-                message = await self.client._async_get_iopub_msg(  # noqa: SLF001
-                    **kwargs
-                )
+                message = await self.client.get_iopub_msg(**kwargs)
                 logger.debug("kernel execution message: [%s]", message)
                 response = ExecutionResponse.model_validate(message)
                 if response.parent_header.msg_id != msg_id:
@@ -187,10 +186,34 @@ class LocalPyBox(BasePyBox):
 
     def __interrupt_kernel(self) -> None:
         """send an interrupt message to the kernel."""
+        if SYSTEM_PLATFORM == "Windows":
+            logger.warning("Interrupt signal is not supported on Windows.")
+            return
         try:
             interrupt_msg = self.client.session.msg("interrupt_request", content={})
             self.client.control_channel.send(interrupt_msg)
             control_msg = self.client.get_control_msg(timeout=5)
+            # TODO: Do you need to determine whether the parent id is equal to the interrupt message id?
+            # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#kernel-interrupt>
+            if control_msg["msg_type"] == "interrupt_reply":
+                status = control_msg["content"]["status"]
+                if status == "ok":
+                    logger.info("Kernel %s interrupt signal sent successfully.", self.kernel_id)
+                else:
+                    logger.warning("Kernel %s interrupt signal sent failed: %s", self.kernel_id, status)
+        except Exception as e:  # noqa: BLE001
+            # TODO: What should I do if sending an interrupt message times out or fails?
+            logger.warning("Failed to send interrupt message to kernel %s: %s", self.kernel_id, e)
+
+    async def __ainterrupt_kernel(self) -> None:
+        """send an interrupt message to the kernel."""
+        if SYSTEM_PLATFORM == "Windows":
+            logger.warning("Interrupt signal is not supported on Windows.")
+            return
+        try:
+            interrupt_msg = self.client.session.msg("interrupt_request", content={})
+            self.client.control_channel.send(interrupt_msg)
+            control_msg = await self.client.get_control_msg(timeout=5)
             # TODO: Do you need to determine whether the parent id is equal to the interrupt message id?
             # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#kernel-interrupt>
             if control_msg["msg_type"] == "interrupt_reply":
