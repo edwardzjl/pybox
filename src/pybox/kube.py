@@ -30,12 +30,12 @@ class KubePyBoxManager(BasePyBoxManager):
 
         self.client = JupyterKernelClient(incluster=incluster)
 
-    def start(self, kernel_id: str, cwd: str, **kwargs) -> LocalPyBox:
+    def start(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> LocalPyBox:
         """Retrieve an existing kernel or create a new one in kubernetes
 
         Args:
-            kernel_id (str): kernel_id
-            cwd (str): kernel_working_dir
+            kernel_id (str | None): kernel_id
+            cwd (str | None): kernel_working_dir
 
         Returns:
             LocalPyBox: kubernetes kernel box
@@ -59,12 +59,12 @@ class KubePyBoxManager(BasePyBoxManager):
 
         return LocalPyBox(kernel_id=kernel_id, client=kernel_client)
 
-    async def astart(self, kernel_id: str, cwd: str, **kwargs) -> LocalPyBox:
+    async def astart(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> LocalPyBox:
         """Retrieve an existing kernel or create a new one in kubernetes
 
         Args:
-            kernel_id (str): kubernetes kernel id
-            cwd (str): kernel workdir
+            kernel_id (str | None): kubernetes kernel id
+            cwd (str | None): kernel workdir
 
         Returns:
             LocalPyBox: An iPython kernel that executes code.
