@@ -13,14 +13,11 @@ from websockets.sync.client import connect
 
 from pybox.base import BasePyBox, BasePyBoxManager
 from pybox.schema import (
-    CodeExecutionError,
     CreateKernelRequest,
     ExecutionRequest,
     ExecutionResponse,
-    ExecutionResultContent,
     Kernel,
     PyBoxOut,
-    StreamContent,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,12 +30,12 @@ class RemotePyBox(BasePyBox):
         self.kernel_id = kernel.id
         self.ws_url = ws_url
 
-    def run(self, code: str) -> PyBoxOut | None:
+    def run(self, code: str) -> PyBoxOut:
         payload = ExecutionRequest.of_code(code)
         logger.debug("kernel execution payload: %s", payload.model_dump_json())
+        pybox_out = PyBoxOut()
         with connect(self.ws_url) as websocket:
             logger.debug("connecting to kernel [%s] with url: %s", self.kernel_id, self.ws_url)
-            result = None
             websocket.send(payload.model_dump_json())
             while message := websocket.recv():
                 logger.debug("kernel execution message: [%s]", message)
@@ -51,37 +48,29 @@ class RemotePyBox(BasePyBox):
                     # Ignore broadcast message
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#code-inputs>
                     logger.debug("Ignoring broadcast execution input.")
-                elif response.msg_type == "execute_reply":
-                    # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
-                    # error execution may have extra messages, for example a stream std error
-                    if response.content.status == "error":
-                        raise CodeExecutionError(
-                            ename=response.content.ename,
-                            evalue=response.content.evalue,
-                            traceback=response.content.traceback,
-                        )
-
-                    # For status != "error" we may want to extract the result from "stream" or "execute_result"
                 elif response.msg_type in ["execute_result", "display_data"]:
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#display-data>
-                    result = PyBoxOut(data=response.content.data)
+                    pybox_out.data.append(response.content.data)
                 elif response.msg_type == "stream":
                     # 'stream' is treated as second-class citizen. If 'execute_result', 'display_data' or 'execute_reply.error' exists,
                     # We ignore the 'stream' message. If only all other messages has nothing to display, we will use the 'stream' message.
                     # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc>
-                    if not result:
-                        result = PyBoxOut(data={"text/plain": response.content.text})
+                    pybox_out.data.append({"text/plain": response.content.text})
+                elif response.msg_type == "error":
+                    # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#execution-errors>
+                    pybox_out.error = response.content
                 elif response.msg_type == "status":  # noqa: SIM102
                     # According to the document <https://jupyter-client.readthedocs.io/en/latest/messaging.html#request-reply>
                     # The idle message will be published after processing the request and publishing associated IOPub messages
                     if response.content.execution_state == "idle":
                         break
-        return result
+        return pybox_out
 
-    async def arun(self, code: str) -> ExecutionResultContent | StreamContent:
+    async def arun(self, code: str) -> PyBoxOut:
         payload = ExecutionRequest.of_code(code)
         logger.debug("kernel execution payload: %s", payload.model_dump_json())
+        pybox_out = PyBoxOut()
         async with asyncio.timeout(300):
             async with aconnect(self.ws_url) as websocket:
                 logger.debug(
@@ -89,7 +78,6 @@ class RemotePyBox(BasePyBox):
                     self.kernel_id,
                     self.ws_url,
                 )
-                result = None
                 await websocket.send(payload.model_dump_json())
                 while message := await websocket.recv():
                     logger.debug("kernel execution message: [%s]", message)
@@ -102,32 +90,24 @@ class RemotePyBox(BasePyBox):
                         # Ignore broadcast message
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#code-inputs>
                         logger.debug("Ignoring broadcast execution input.")
-                    elif response.msg_type == "execute_reply":
-                        # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#execution-results>
-                        # error execution may have extra messages, for example a stream std error
-                        if response.content.status == "error":
-                            raise CodeExecutionError(
-                                ename=response.content.ename,
-                                evalue=response.content.evalue,
-                                traceback=response.content.traceback,
-                            )
-                        # For status != "error" we may want to extract the result from "stream" or "execute_result"
                     elif response.msg_type in ["execute_result", "display_data"]:
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>
                         # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#display-data>
-                        result = PyBoxOut(data=response.content.data)
+                        pybox_out.data.append(response.content.data)
                     elif response.msg_type == "stream":
                         # 'stream' is treated as second-class citizen. If 'execute_result', 'display_data' or 'execute_reply.error' exists,
                         # We ignore the 'stream' message. If only all other messages has nothing to display, we will use the 'stream' message.
                         # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc>
-                        if not result:
-                            result = PyBoxOut(data={"text/plain": response.content.text})
+                        pybox_out.data.append({"text/plain": response.content.text})
+                    elif response.msg_type == "error":
+                        # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#execution-errors>
+                        pybox_out.error = response.content
                     elif response.msg_type == "status":  # noqa: SIM102
                         # According to the document <https://jupyter-client.readthedocs.io/en/latest/messaging.html#request-reply>
                         # The idle message will be published after processing the request and publishing associated IOPub messages
                         if response.content.execution_state == "idle":
                             break
-        return result
+        return pybox_out
 
     def handler_init_message(self):
         # There will be 3 messages send by the kernel after the connection is established

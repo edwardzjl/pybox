@@ -14,20 +14,20 @@ class BasePyBox(ABC):
     """A PyBox is an interface to a kernel that can execute code."""
 
     @abstractmethod
-    def run(self, code: str, **kwargs) -> PyBoxOut | None:
+    def run(self, code: str, **kwargs) -> PyBoxOut:
         """Execute code in the PyBox and return the result.
 
         Args:
             code (str): code to execute
 
         Returns:
-            PyBoxOut | None: result of the code execution
+            PyBoxOut: result of the code execution
 
         Raises:
-            CodeExecutionException: if the code execution fails
+            TimeoutError: if the code execution times out
         """
 
-    async def arun(self, code: str, **kwargs) -> PyBoxOut | None:
+    async def arun(self, code: str, **kwargs) -> PyBoxOut:
         """Asynchoronously execute code in the PyBox and return the result.
         Default implementation is to call the synchronous `run` method.
 
@@ -35,10 +35,10 @@ class BasePyBox(ABC):
             code (str): code to execute
 
         Returns:
-            PyBoxOut | None: result of the code execution
+            PyBoxOut: result of the code execution
 
         Raises:
-            CodeExecutionException: if the code execution fails
+            TimeoutError: if the code execution times out
         """
         return self.run(code=code, **kwargs)
 
