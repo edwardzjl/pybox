@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 
 from pybox.base import BasePyBox, BasePyBoxManager
 from pybox.schema import (
-    CodeExecutionError,
     ExecutionResponse,
     PyBoxOut,
 )
@@ -30,7 +29,7 @@ class LocalPyBox(BasePyBox):
         self.kernel_id = kernel_id
         self.client = client
 
-    def run(self, code: str, timeout: int = 60) -> PyBoxOut | None:
+    def run(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
             self.client.wait_for_ready()
 
@@ -52,20 +51,19 @@ class LocalPyBox(BasePyBox):
                 return None
             return ExecutionResponse.model_validate(shell_msg)
 
-    def __get_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut | None:
+    def __get_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut:
         """Retrieves output from a kernel.
 
         Args:
             msg_id (str): request message id.
 
         Returns:
-            PyBoxOut | None: result of the code execution
+            PyBoxOut: result of the code execution
 
         Raises:
-            CodeExecutionException: if the code execution fails
+            TimeoutError: if the code execution times out
         """
-        result = None
-        error = None
+        pybox_out = PyBoxOut()
         while True:
             # Poll the message
             try:
@@ -83,32 +81,26 @@ class LocalPyBox(BasePyBox):
                 elif response.msg_type in ["execute_result", "display_data"]:
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#display-data>
-                    result = PyBoxOut(data=response.content.data)
+                    pybox_out.data.append(response.content.data)
                 elif response.msg_type == "stream":
                     # 'stream' is treated as second-class citizen. If 'execute_result', 'display_data' or 'execute_reply.error' exists,
                     # We ignore the 'stream' message. If only all other messages has nothing to display, we will use the 'stream' message.
                     # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc>
-                    if not result:
-                        result = PyBoxOut(data={"text/plain": response.content.text})
+                    pybox_out.data.append({"text/plain": response.content.text})
                 elif response.msg_type == "error":
-                    error = CodeExecutionError(
-                        ename=response.content.ename,
-                        evalue=response.content.evalue,
-                        traceback=response.content.traceback,
-                    )
+                    # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#execution-errors>
+                    pybox_out.error = response.content
 
                 elif response.msg_type == "status":  # noqa: SIM102
                     # According to the document <https://jupyter-client.readthedocs.io/en/latest/messaging.html#request-reply>
                     # The idle message will be published after processing the request and publishing associated IOPub messages
                     if response.content.execution_state == "idle":
-                        if error is not None:
-                            raise error
-                        return result
+                        return pybox_out
             except queue.Empty:
                 logger.warning("No iopub message received.")
-                return result
+                raise TimeoutError("Kernel execution timed out.")  # noqa: B904, TRY003, EM101
 
-    async def arun(self, code: str, timeout: int = 60) -> PyBoxOut | None:
+    async def arun(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
             await self.client._async_wait_for_ready()  # noqa: SLF001
 
@@ -129,20 +121,19 @@ class LocalPyBox(BasePyBox):
                 return None
             return ExecutionResponse.model_validate(shell_msg)
 
-    async def __aget_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut | None:
+    async def __aget_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut:
         """Retrieves output from a kernel asynchronously.
 
         Args:
             msg_id (str): request message id.
 
         Returns:
-            PyBoxOut | None: result of the code execution
+            PyBoxOut: result of the code execution
 
         Raises:
-            CodeExecutionException: if the code execution fails
+            TimeoutError: if the code execution times out
         """
-        result = None
-        error = None
+        pybox_out = PyBoxOut()
         while True:
             # Poll the message
             try:
@@ -160,29 +151,23 @@ class LocalPyBox(BasePyBox):
                 elif response.msg_type in ["execute_result", "display_data"]:
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#id6>
                     # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#display-data>
-                    result = PyBoxOut(data=response.content.data)
+                    pybox_out.data.append(response.content.data)
                 elif response.msg_type == "stream":
                     # 'stream' is treated as second-class citizen. If 'execute_result', 'display_data' or 'execute_reply.error' exists,
                     # We ignore the 'stream' message. If only all other messages has nothing to display, we will use the 'stream' message.
                     # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#streams-stdout-stderr-etc>
-                    if not result:
-                        result = PyBoxOut(data={"text/plain": response.content.text})
+                    pybox_out.data.append({"text/plain": response.content.text})
                 elif response.msg_type == "error":
-                    error = CodeExecutionError(
-                        ename=response.content.ename,
-                        evalue=response.content.evalue,
-                        traceback=response.content.traceback,
-                    )
+                    # See <https://jupyter-client.readthedocs.io/en/stable/messaging.html#execution-errors>
+                    pybox_out.error = response.content
                 elif response.msg_type == "status":  # noqa: SIM102
                     # According to the document <https://jupyter-client.readthedocs.io/en/latest/messaging.html#request-reply>
                     # The idle message will be published after processing the request and publishing associated IOPub messages
                     if response.content.execution_state == "idle":
-                        if error is not None:
-                            raise error
-                        return result
+                        return pybox_out
             except queue.Empty:
                 logger.warning("No iopub message received.")
-                return result
+                raise TimeoutError("Kernel execution timed out.")  # noqa: B904, TRY003, EM101
 
     def __interrupt_kernel(self) -> None:
         """send an interrupt message to the kernel."""

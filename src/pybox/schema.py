@@ -10,31 +10,11 @@ from pydantic import BaseModel, Field, field_validator
 from pybox.utils import clean_ansi_codes
 
 
-class CodeExecutionError(RuntimeError):
-    """This exception is raised when code execution fails."""
-
-    ename: str
-    evalue: str
-    traceback: list[str]
-
-    def __init__(self, ename, evalue, traceback, *args):
-        # TODO: Maybe I can simulate a traceback into super
-        super().__init__(evalue, *args)
-        self.ename = ename
-        self.evalue = evalue
-        self.traceback = traceback
-
-    def __str__(self) -> str:
-        return "\n".join([clean_ansi_codes(line) for line in self.traceback])
-
-
 class PyBoxOut(BaseModel):
-    data: dict
-
-    @property
-    def text(self) -> str:
-        """A helper property to get the text content of the output."""
-        return self.data.get("text/plain", "")
+    data: list[dict[str, str]] = []
+    """Complete output of the code execution. """
+    error: ErrorContent | None = None
+    """Information about errors that occurred during execution."""
 
 
 class CreateKernelRequest(BaseModel):
@@ -147,6 +127,9 @@ class ErrorContent(BaseModel):
     ename: str
     evalue: str
     traceback: list[str]
+
+    def __str__(self) -> str:
+        return "\n".join([clean_ansi_codes(line) for line in self.traceback])
 
 
 class ExecutionResultContent(BaseModel):

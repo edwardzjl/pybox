@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from pybox.schema import CodeExecutionError, CreateKernelRequest
+from pybox.schema import CreateKernelRequest, ErrorContent
 from pydantic import ValidationError
 
 
@@ -10,9 +10,7 @@ def test_code_execution_error_initialization():
     evalue = "ErrorValue"
     traceback = ["traceback line 1", "traceback line 2", "traceback line 3"]
 
-    error = CodeExecutionError(ename, evalue, traceback)
-
-    assert isinstance(error, RuntimeError)
+    error = ErrorContent(ename=ename, evalue=evalue, traceback=traceback)
 
     assert error.ename == ename
     assert error.evalue == evalue
@@ -28,7 +26,7 @@ def test_code_execution_error_message_cleaning():
         "\x1b[31mtraceback line 3\x1b[0m",
     ]
 
-    error = CodeExecutionError(ename, evalue, traceback)
+    error = ErrorContent(ename=ename, evalue=evalue, traceback=traceback)
     assert str(error) == "traceback line 1\ntraceback line 2\ntraceback line 3"
 
 
