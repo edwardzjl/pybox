@@ -217,7 +217,10 @@ class LocalPyBoxManager(BasePyBoxManager):
         self,
         kernel_manager: MultiKernelManager | None = None,
         async_kernel_manager: AsyncMultiKernelManager | None = None,
+        profile_dir: str | None = None,
     ):
+        self.profile_dir = profile_dir
+
         if kernel_manager is None:
             self.kernel_manager = MultiKernelManager()
         else:
@@ -243,6 +246,9 @@ class LocalPyBoxManager(BasePyBoxManager):
         if kernel_id is None:
             kernel_id = str(uuid4())
         logger.debug("Starting new kernel with ID %s", kernel_id)
+
+        if self.profile_dir is not None:
+            kwargs["extra_arguments"] = ["--profile-dir", self.profile_dir]
         try:
             kid = self.kernel_manager.start_kernel(kernel_id=kernel_id, **kwargs)
         except DuplicateKernelError:
@@ -259,6 +265,10 @@ class LocalPyBoxManager(BasePyBoxManager):
         if kernel_id is None:
             kernel_id = str(uuid4())
         logger.debug("Starting new kernel with ID %s", kernel_id)
+
+        if self.profile_dir is not None:
+            kwargs["extra_arguments"] = ["--profile-dir", self.profile_dir]
+
         try:
             kid = await self.async_kernel_manager.start_kernel(kernel_id=kernel_id, **kwargs)
         except DuplicateKernelError:
