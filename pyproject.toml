@@ -57,6 +57,7 @@ feature = ["local"]
 
 [tool.hatch.envs.hatch-test]
 parallel = true
+extra-args = ["--dist","loadfile"]
 extra-dependencies = [
   "pppybox[local]",
   "pytest-asyncio",
@@ -87,3 +88,7 @@ exclude_lines = [
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
+
+[tool.ruff]
+# Allow lines to be as long as 120.
+line-length = 120
