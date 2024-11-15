@@ -31,7 +31,7 @@ class LocalPyBox(BasePyBox):
 
     def run(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
-            self.client.wait_for_ready()
+            self.client.wait_for_ready(timeout=timeout)
 
         msg_id = self.client.execute(code)
         self.__wait_for_execute_reply(msg_id, timeout=timeout)
