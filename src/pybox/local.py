@@ -304,3 +304,9 @@ class LocalPyBoxManager(BasePyBoxManager):
             logger.warning("kernel %s not found", kernel_id)
         else:
             logger.info("Kernel %s shut down", kernel_id)
+
+    def shutdown_all(self):
+        self.kernel_manager.shutdown_all()
+
+    async def ashutdown_all(self):
+        await self.async_kernel_manager.shutdown_all()
