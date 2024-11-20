@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from jupyter_client import AsyncMultiKernelManager, MultiKernelManager
 from jupyter_client.multikernelmanager import DuplicateKernelError
+from jupyter_core.utils import run_sync
 
 if TYPE_CHECKING:
     from jupyter_client.asynchronous import AsyncKernelClient
@@ -183,12 +184,23 @@ class LocalPyBox(BasePyBox):
             if control_msg["msg_type"] == "interrupt_reply":
                 status = control_msg["content"]["status"]
                 if status == "ok":
-                    logger.info("Kernel %s interrupt signal sent successfully.", self.kernel_id)
+                    logger.info(
+                        "Kernel %s interrupt signal sent successfully.",
+                        self.kernel_id,
+                    )
                 else:
-                    logger.warning("Kernel %s interrupt signal sent failed: %s", self.kernel_id, status)
+                    logger.warning(
+                        "Kernel %s interrupt signal sent failed: %s",
+                        self.kernel_id,
+                        status,
+                    )
         except Exception as e:  # noqa: BLE001
             # TODO: What should I do if sending an interrupt message times out or fails?
-            logger.warning("Failed to send interrupt message to kernel %s: %s", self.kernel_id, e)
+            logger.warning(
+                "Failed to send interrupt message to kernel %s: %s",
+                self.kernel_id,
+                e,
+            )
 
     async def __ainterrupt_kernel(self) -> None:
         """send an interrupt message to the kernel."""
@@ -204,12 +216,23 @@ class LocalPyBox(BasePyBox):
             if control_msg["msg_type"] == "interrupt_reply":
                 status = control_msg["content"]["status"]
                 if status == "ok":
-                    logger.info("Kernel %s interrupt signal sent successfully.", self.kernel_id)
+                    logger.info(
+                        "Kernel %s interrupt signal sent successfully.",
+                        self.kernel_id,
+                    )
                 else:
-                    logger.warning("Kernel %s interrupt signal sent failed: %s", self.kernel_id, status)
+                    logger.warning(
+                        "Kernel %s interrupt signal sent failed: %s",
+                        self.kernel_id,
+                        status,
+                    )
         except Exception as e:  # noqa: BLE001
             # TODO: What should I do if sending an interrupt message times out or fails?
-            logger.warning("Failed to send interrupt message to kernel %s: %s", self.kernel_id, e)
+            logger.warning(
+                "Failed to send interrupt message to kernel %s: %s",
+                self.kernel_id,
+                e,
+            )
 
 
 class LocalPyBoxManager(BasePyBoxManager):
@@ -220,7 +243,6 @@ class LocalPyBoxManager(BasePyBoxManager):
         profile_dir: str | None = None,
     ):
         self.profile_dir = profile_dir
-
         if kernel_manager is None:
             self.kernel_manager = MultiKernelManager()
         else:
@@ -230,13 +252,40 @@ class LocalPyBoxManager(BasePyBoxManager):
         else:
             self.async_kernel_manager = async_kernel_manager
 
-    # TODO: I cannot use __del__ in async context
-    # maybe I shouldn't clean up the kernels in the __del__ method
-    def __del__(self):
+        # TODO: It works well in async scenarios but blocks in sync scenarios, so it should be disabled now.
+        # weakref.finalize(self, self.cleanup)
+
+    async def acleanup(self, *, now: bool = False):
         """clean up all the kernels."""
-        logger.info("Shutting down all kernels")
-        self.kernel_manager.shutdown_all(now=True)
-        self.kernel_manager.__del__()
+        logger.info("Shutting down all sync kernels")
+        self.shutdown_all(now=now)
+
+        # close the async kernels
+        logger.info("Shutting down all async kernels")
+        await self.ashutdown_all(now=now)
+
+    cleanup = run_sync(acleanup)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cleanup(now=True)
+        if exc_type is not None:
+            return False
+
+        return True
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.acleanup(now=True)
+
+        if exc_type is not None:
+            return False
+
+        return True
 
     def start(
         self,
@@ -305,8 +354,10 @@ class LocalPyBoxManager(BasePyBoxManager):
         else:
             logger.info("Kernel %s shut down", kernel_id)
 
-    def shutdown_all(self):
-        self.kernel_manager.shutdown_all()
+    def shutdown_all(self, *args, **kwargs):
+        if len(self.kernel_manager):
+            self.kernel_manager.shutdown_all(*args, **kwargs)
 
-    async def ashutdown_all(self):
-        await self.async_kernel_manager.shutdown_all()
+    async def ashutdown_all(self, *args, **kwargs):
+        if len(self.async_kernel_manager):
+            await self.async_kernel_manager.shutdown_all(*args, **kwargs)
