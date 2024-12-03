@@ -19,7 +19,6 @@ class KubePyBoxManager(BasePyBoxManager):
     def __init__(
         self,
         *,
-        incluster: bool,
         env_file: str | None = None,
         kernel_env: dict[str, Any] | None = None,
     ):
@@ -28,7 +27,7 @@ class KubePyBoxManager(BasePyBoxManager):
         if kernel_env:
             self.kernel_env.update(kernel_env)
 
-        self.client = JupyterKernelClient(incluster=incluster)
+        self.client = JupyterKernelClient()
 
     def start(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> LocalPyBox:
         """Retrieve an existing kernel or create a new one in kubernetes
