@@ -17,7 +17,7 @@ def local_manager() -> Iterator[LocalPyBoxManager]:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def alocal_manager() -> AsyncIterator[LocalPyBoxManager]:
+async def async_local_manager() -> AsyncIterator[LocalPyBoxManager]:
     _mng = LocalPyBoxManager()
     yield _mng
     await _mng.async_kernel_manager.shutdown_all(now=True)
@@ -33,13 +33,13 @@ def test_start_w_id(local_manager: LocalPyBoxManager):
 
 
 @pytest.mark.asyncio
-async def test_start_async_w_id(alocal_manager: LocalPyBoxManager):
+async def test_start_async_w_id(async_local_manager: LocalPyBoxManager):
     kernel_id = str(uuid4())
-    box = await alocal_manager.astart(kernel_id)
+    box = await async_local_manager.astart(kernel_id)
 
     assert box.kernel_id == kernel_id
-    assert box.kernel_id in alocal_manager.async_kernel_manager
-    assert await alocal_manager.async_kernel_manager.is_alive(box.kernel_id)
+    assert box.kernel_id in async_local_manager.async_kernel_manager
+    assert await async_local_manager.async_kernel_manager.is_alive(box.kernel_id)
 
 
 def test_box_lifecycle(local_manager: LocalPyBoxManager):
@@ -54,15 +54,15 @@ def test_box_lifecycle(local_manager: LocalPyBoxManager):
 
 
 @pytest.mark.asyncio
-async def test_box_lifecycle_async(alocal_manager: LocalPyBoxManager):
-    box = await alocal_manager.astart()
+async def test_box_lifecycle_async(async_local_manager: LocalPyBoxManager):
+    box = await async_local_manager.astart()
 
-    assert box.kernel_id in alocal_manager.async_kernel_manager
-    assert await alocal_manager.async_kernel_manager.is_alive(box.kernel_id)
+    assert box.kernel_id in async_local_manager.async_kernel_manager
+    assert await async_local_manager.async_kernel_manager.is_alive(box.kernel_id)
 
-    await alocal_manager.ashutdown(box.kernel_id)
+    await async_local_manager.ashutdown(box.kernel_id)
 
-    assert box.kernel_id not in alocal_manager.async_kernel_manager
+    assert box.kernel_id not in async_local_manager.async_kernel_manager
 
 
 def test_set_cwd(local_manager: LocalPyBoxManager):
@@ -77,10 +77,10 @@ def test_set_cwd(local_manager: LocalPyBoxManager):
 
 
 @pytest.mark.asyncio
-async def test_set_cwd_async(alocal_manager: LocalPyBoxManager):
+async def test_set_cwd_async(async_local_manager: LocalPyBoxManager):
     # even we don't set the cwd, it defaults to os.getcwd()
     # in order to test this is working, we need to change the cwd to a cross platform path
-    kernel = await alocal_manager.astart(cwd=os.path.expanduser("~"))
+    kernel = await async_local_manager.astart(cwd=os.path.expanduser("~"))
 
     test_code = "import os\nprint(os.getcwd())"
     out: PyBoxOut = await kernel.arun(code=test_code)
@@ -96,10 +96,10 @@ def local_box(local_manager: LocalPyBoxManager) -> Iterator[LocalPyBox]:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def local_box_async(alocal_manager: LocalPyBoxManager) -> AsyncIterator[LocalPyBox]:
-    _box = await alocal_manager.astart()
+async def async_local_box(async_local_manager: LocalPyBoxManager) -> AsyncIterator[LocalPyBox]:
+    _box = await async_local_manager.astart()
     yield _box
-    await alocal_manager.ashutdown(_box.kernel_id)
+    await async_local_manager.ashutdown(_box.kernel_id)
 
 
 def test_code_execute(local_box: LocalPyBox):
@@ -111,9 +111,9 @@ def test_code_execute(local_box: LocalPyBox):
 
 
 @pytest.mark.asyncio
-async def test_code_execute_async(local_box_async: LocalPyBox):
+async def test_code_execute_async(async_local_box: LocalPyBox):
     test_code = "print('test')"
-    out = await local_box_async.arun(code=test_code)
+    out = await async_local_box.arun(code=test_code)
 
     assert len(out.data) == 1
     assert out.data[0]["text/plain"] == "test\n"
@@ -132,13 +132,13 @@ print(a)"""
 
 
 @pytest.mark.asyncio
-async def test_variable_reuse_async(local_box_async: LocalPyBox):
+async def test_variable_reuse_async(async_local_box: LocalPyBox):
     code_round1 = """a = 1
 print(a)"""
-    await local_box_async.arun(code=code_round1)
+    await async_local_box.arun(code=code_round1)
     code_round2 = """a += 1
 print(a)"""
-    out: PyBoxOut = await local_box_async.arun(code=code_round2)
+    out: PyBoxOut = await async_local_box.arun(code=code_round2)
 
     assert len(out.data) == 1
     assert out.data[0]["text/plain"] == "2\n"
@@ -155,11 +155,11 @@ print(a)"""
 
 
 @pytest.mark.asyncio
-async def test_print_multi_line_async(local_box_async: LocalPyBox):
+async def test_print_multi_line_async(async_local_box: LocalPyBox):
     code = """a = 1
 print(a)
 print(a)"""
-    out: PyBoxOut = await local_box_async.arun(code=code)
+    out: PyBoxOut = await async_local_box.arun(code=code)
 
     assert len(out.data) == 1
     assert out.data[0]["text/plain"] == "1\n1\n"
@@ -174,9 +174,9 @@ def test_execute_exception(local_box: LocalPyBox):
 
 
 @pytest.mark.asyncio
-async def test_execute_exception_async(local_box_async: LocalPyBox):
+async def test_execute_exception_async(async_local_box: LocalPyBox):
     division_by_zero = "1 / 0"
-    out: PyBoxOut = await local_box_async.arun(code=division_by_zero)
+    out: PyBoxOut = await async_local_box.arun(code=division_by_zero)
     assert out.data == []
     assert out.error is not None
     assert out.error.ename == "ZeroDivisionError"
@@ -189,9 +189,9 @@ def test_not_output(local_box: LocalPyBox):
 
 
 @pytest.mark.asyncio
-async def test_not_output_async(local_box_async: LocalPyBox):
+async def test_not_output_async(async_local_box: LocalPyBox):
     test_code = "a = 1"
-    out: PyBoxOut = await local_box_async.arun(code=test_code)
+    out: PyBoxOut = await async_local_box.arun(code=test_code)
     assert out.data == []
 
 
@@ -206,10 +206,10 @@ time.sleep(10)"""
 
 
 @pytest.mark.asyncio
-async def test_execute_timeout_async(local_box_async: LocalPyBox):
+async def test_execute_timeout_async(async_local_box: LocalPyBox):
     timeout_code = """import time
 time.sleep(10)"""
-    out: PyBoxOut = await local_box_async.arun(code=timeout_code, timeout=1)
+    out: PyBoxOut = await async_local_box.arun(code=timeout_code, timeout=1)
 
     assert out.data == []
     assert out.error is not None
@@ -234,19 +234,19 @@ time.sleep(10)"""
 
 
 @pytest.mark.asyncio
-async def test_interrupt_kernel_async(local_box_async: LocalPyBox):
+async def test_interrupt_kernel_async(async_local_box: LocalPyBox):
     code = "a = 1"
-    await local_box_async.arun(code=code)
+    await async_local_box.arun(code=code)
 
     timeout_code = """import time
 time.sleep(10)"""
-    out: PyBoxOut = await local_box_async.arun(code=timeout_code, timeout=1)
+    out: PyBoxOut = await async_local_box.arun(code=timeout_code, timeout=1)
 
     assert out.data == []
     assert out.error is not None
     assert out.error.ename == "KeyboardInterrupt"
 
-    res: PyBoxOut = await local_box_async.arun(code="print(a)")
+    res: PyBoxOut = await async_local_box.arun(code="print(a)")
     assert len(res.data) == 1
     assert res.data[0]["text/plain"] == "1\n"
 
@@ -265,12 +265,12 @@ print(c)"""
 
 
 @pytest.mark.asyncio
-async def test_partial_execution_failed_async(local_box_async: LocalPyBox):
+async def test_partial_execution_failed_async(async_local_box: LocalPyBox):
     code = """a = 1
 b = 2
 print(a)
 print(c)"""
-    out: PyBoxOut = await local_box_async.arun(code=code)
+    out: PyBoxOut = await async_local_box.arun(code=code)
 
     assert len(out.data) == 1
     assert out.data[0]["text/plain"] == "1\n"
@@ -297,7 +297,7 @@ x, y"""
 
 @pytest.mark.skip(reason="matplotlib library is required")
 @pytest.mark.asyncio
-async def test_multi_channel_output_async(local_box_async: LocalPyBox):
+async def test_multi_channel_output_async(async_local_box: LocalPyBox):
     code = """import matplotlib.pyplot as plt
 x = [1, 2, 3, 4, 5]
 y = [2, 3, 5, 7, 11]
@@ -306,7 +306,7 @@ plt.plot(x, y)
 plt.show()
 
 x, y"""
-    out: PyBoxOut = await local_box_async.arun(code=code)
+    out: PyBoxOut = await async_local_box.arun(code=code)
 
     assert len(out.data) == 2
     assert "image/png" in out.data[0]
