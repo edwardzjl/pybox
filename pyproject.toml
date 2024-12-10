@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = ''
 readme = "README.md"
 requires-python = ">=3.8"
-license = "Apache-2.0"
+license = {file = "LICENSE"}
 keywords = []
 authors = [
   { name = "Junlin Zhou", email = "jameszhou2108@hotmail.com" },
@@ -71,7 +71,8 @@ extra-dependencies = [
 check = "mypy --install-types --non-interactive {args:src/pybox tests}"
 
 [tool.pytest.ini_options]
-asyncio_default_fixture_loop_scope = "module"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 source_pkgs = ["pybox", "tests"]
