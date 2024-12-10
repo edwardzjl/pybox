@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import platform
 import queue
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 from uuid import uuid4
 
 from jupyter_client import AsyncMultiKernelManager, KernelManager, MultiKernelManager
@@ -11,8 +11,8 @@ from jupyter_client.multikernelmanager import DuplicateKernelError
 from jupyter_core.utils import run_sync
 
 if TYPE_CHECKING:
-    from jupyter_client.asynchronous import AsyncKernelClient
-    from jupyter_client.blocking import BlockingKernelClient
+    from types import TracebackType
+
 
 from pybox.base import BasePyBox, BasePyBoxManager
 from pybox.schema import (
@@ -26,16 +26,39 @@ SYSTEM_PLATFORM = platform.system()
 
 
 class LocalPyBox(BasePyBox):
-    def __init__(self, km: KernelManager):
+    def __init__(self, km: KernelManager, mkm: MultiKernelManager):
         self.km = km
+        self.mkm = mkm
+        self.client = self.km.client()
 
     @property
     def kernel_id(self) -> str | None:
         return self.km.kernel_id
 
-    @property
-    def client(self) -> BlockingKernelClient | AsyncKernelClient:
-        return self.km.client()
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool:
+        # If we use `self.km.shutdown_kernel(now=True)`, the kernel_id will last in the multi_kernel_manager.
+        self.mkm.shutdown_kernel(kernel_id=self.kernel_id, now=True)
+        # 返回 False 让异常继续传播, 返回 True 会抑制异常
+        return False
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
+    ) -> bool:
+        # If we use `await self.km.shutdown_kernel(now=True)`, the kernel_id will last in the multi_kernel_manager.
+        await self.mkm.shutdown_kernel(kernel_id=self.kernel_id, now=True)
+        # 返回 False 让异常继续传播, 返回 True 会抑制异常
+        return False
 
     def run(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
@@ -313,7 +336,7 @@ class LocalPyBoxManager(BasePyBoxManager):
             # it's OK if the kernel already exists
             kid = kernel_id
         km = self.kernel_manager.get_kernel(kernel_id=kid)
-        return LocalPyBox(km=km)
+        return LocalPyBox(km=km, mkm=self.kernel_manager)
 
     async def astart(
         self,
@@ -333,7 +356,7 @@ class LocalPyBoxManager(BasePyBoxManager):
             # it's OK if the kernel already exists
             kid = kernel_id
         km = self.async_kernel_manager.get_kernel(kernel_id=kid)
-        return LocalPyBox(km=km)
+        return LocalPyBox(km=km, mkm=self.async_kernel_manager)
 
     def shutdown(
         self,
