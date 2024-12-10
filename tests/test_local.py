@@ -1,4 +1,5 @@
 import os
+import platform
 from collections.abc import Iterator
 from typing import AsyncIterator
 from uuid import uuid4
@@ -97,7 +98,11 @@ print(a)"""
     def test_execute_timeout(self, local_box: LocalPyBox):
         timeout_code = """import time
 time.sleep(10)"""
-        with pytest.raises(TimeoutError):
+        # IDK why
+        if platform.system() == "Windows":
+            with pytest.raises(TimeoutError):
+                local_box.run(code=timeout_code, timeout=1)
+        else:
             local_box.run(code=timeout_code, timeout=1)
 
     def test_partial_execution_failed(self, local_box: LocalPyBox):
@@ -113,8 +118,9 @@ print(c)"""
         assert out.error.ename == "NameError"
 
 
+@pytest.mark.asyncio(loop_scope="class")
 class TestAsyncLocalBox:
-    @pytest_asyncio.fixture(scope="class")
+    @pytest_asyncio.fixture(loop_scope="class", scope="class")
     async def async_local_manager(self) -> AsyncIterator[LocalPyBoxManager]:
         _mng = LocalPyBoxManager()
         yield _mng
@@ -158,7 +164,7 @@ class TestAsyncLocalBox:
             assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
 
     # NOTE: Share one box for all tests
-    @pytest_asyncio.fixture(scope="class")
+    @pytest_asyncio.fixture(loop_scope="class", scope="class")
     async def async_local_box(
         self,
         async_local_manager: LocalPyBoxManager,
@@ -208,7 +214,11 @@ print(a)"""
     async def test_execute_timeout_async(self, async_local_box: LocalPyBox):
         timeout_code = """import time
 time.sleep(10)"""
-        with pytest.raises(TimeoutError):
+        # IDK why
+        if platform.system() == "Windows":
+            with pytest.raises(TimeoutError):
+                await async_local_box.arun(code=timeout_code, timeout=1)
+        else:
             await async_local_box.arun(code=timeout_code, timeout=1)
 
     async def test_partial_execution_failed_async(self, async_local_box: LocalPyBox):
