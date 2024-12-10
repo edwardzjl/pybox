@@ -70,6 +70,9 @@ extra-dependencies = [
 [tool.hatch.envs.types.scripts]
 check = "mypy --install-types --non-interactive {args:src/pybox tests}"
 
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "module"
+
 [tool.coverage.run]
 source_pkgs = ["pybox", "tests"]
 branch = true
