@@ -3,8 +3,13 @@ from __future__ import annotations
 import logging
 import platform
 import queue
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
 from uuid import uuid4
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from jupyter_client import AsyncMultiKernelManager, KernelManager, MultiKernelManager
 from jupyter_client.multikernelmanager import DuplicateKernelError
