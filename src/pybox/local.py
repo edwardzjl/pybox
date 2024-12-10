@@ -31,7 +31,12 @@ class LocalPyBox(BasePyBox):
 
     def run(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
-            self.client.wait_for_ready(timeout=timeout)
+            # `wait_for_ready` raises a RuntimeError if the kernel is not ready
+            try:
+                self.client.wait_for_ready(timeout=timeout)
+            except RuntimeError as e:
+                msg = "Kernel timed out gettting ready."
+                raise TimeoutError(msg) from e
 
         msg_id = self.client.execute(code)
         self.__wait_for_execute_reply(msg_id, timeout=timeout)
@@ -103,7 +108,12 @@ class LocalPyBox(BasePyBox):
 
     async def arun(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
-            await self.client._async_wait_for_ready()  # noqa: SLF001
+            # `wait_for_ready` raises a RuntimeError if the kernel is not ready
+            try:
+                await self.client.wait_for_ready(timeout=timeout)
+            except RuntimeError as e:
+                msg = "Kernel timed out gettting ready."
+                raise TimeoutError(msg) from e
 
         msg_id = self.client.execute(code)
         await self.__await_for_execute_reply(msg_id, timeout=timeout)
