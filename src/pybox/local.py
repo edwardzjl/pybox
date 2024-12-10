@@ -3,16 +3,11 @@ from __future__ import annotations
 import logging
 import platform
 import queue
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
-from jupyter_client import AsyncMultiKernelManager, MultiKernelManager
+from jupyter_client import AsyncMultiKernelManager, KernelManager, MultiKernelManager
 from jupyter_client.multikernelmanager import DuplicateKernelError
 from jupyter_core.utils import run_sync
-
-if TYPE_CHECKING:
-    from jupyter_client.asynchronous import AsyncKernelClient
-    from jupyter_client.blocking import BlockingKernelClient
 
 from pybox.base import BasePyBox, BasePyBoxManager
 from pybox.schema import (
@@ -26,9 +21,13 @@ SYSTEM_PLATFORM = platform.system()
 
 
 class LocalPyBox(BasePyBox):
-    def __init__(self, kernel_id: str, client: BlockingKernelClient | AsyncKernelClient):
-        self.kernel_id = kernel_id
-        self.client = client
+    def __init__(self, km: KernelManager):
+        self.km = km
+        self.client = self.km.client()
+
+    @property
+    def kernel_id(self) -> str | None:
+        return self.km.kernel_id
 
     def run(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
@@ -97,9 +96,10 @@ class LocalPyBox(BasePyBox):
                     # The idle message will be published after processing the request and publishing associated IOPub messages
                     if response.content.execution_state == "idle":
                         return pybox_out
-            except queue.Empty:
+            except queue.Empty as e:
                 logger.warning("No iopub message received.")
-                raise TimeoutError("Kernel execution timed out.")  # noqa: B904, TRY003, EM101
+                msg = "Kernel execution timed out."
+                raise TimeoutError(msg) from e
 
     async def arun(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
@@ -166,9 +166,10 @@ class LocalPyBox(BasePyBox):
                     # The idle message will be published after processing the request and publishing associated IOPub messages
                     if response.content.execution_state == "idle":
                         return pybox_out
-            except queue.Empty:
+            except queue.Empty as e:
                 logger.warning("No iopub message received.")
-                raise TimeoutError("Kernel execution timed out.")  # noqa: B904, TRY003, EM101
+                msg = "Kernel execution timed out."
+                raise TimeoutError(msg) from e
 
     def __interrupt_kernel(self) -> None:
         """send an interrupt message to the kernel."""
@@ -304,7 +305,7 @@ class LocalPyBoxManager(BasePyBoxManager):
             # it's OK if the kernel already exists
             kid = kernel_id
         km = self.kernel_manager.get_kernel(kernel_id=kid)
-        return LocalPyBox(kernel_id=kid, client=km.client())
+        return LocalPyBox(km=km)
 
     async def astart(
         self,
@@ -324,7 +325,7 @@ class LocalPyBoxManager(BasePyBoxManager):
             # it's OK if the kernel already exists
             kid = kernel_id
         km = self.async_kernel_manager.get_kernel(kernel_id=kid)
-        return LocalPyBox(kernel_id=kid, client=km.client())
+        return LocalPyBox(km=km)
 
     def shutdown(
         self,
