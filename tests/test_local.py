@@ -1,5 +1,4 @@
 import os
-import platform
 from collections.abc import Iterator
 from typing import AsyncIterator
 from uuid import uuid4
@@ -91,16 +90,11 @@ print(a)"""
         out: PyBoxOut = local_box.run(code=test_code)
         assert out.data == []
 
-    # TODO: this will block the tests
-    @pytest.mark.skip(reason="This will block the tests")
+    @pytest.mark.skip(reason="TimeoutError not raised")
     def test_execute_timeout(self, local_box: LocalPyBox):
         timeout_code = """import time
 time.sleep(10)"""
-        # IDK why
-        if platform.system() == "Windows":
-            with pytest.raises(TimeoutError):
-                local_box.run(code=timeout_code, timeout=1)
-        else:
+        with pytest.raises(TimeoutError):
             local_box.run(code=timeout_code, timeout=1)
 
     def test_partial_execution_failed(self, local_box: LocalPyBox):
@@ -200,16 +194,12 @@ print(a)"""
         out: PyBoxOut = await async_local_box.arun(code=test_code)
         assert out.data == []
 
-    # TODO: this will block the tests
-    @pytest.mark.skip(reason="This will block the tests")
+    # TODO: this fails
+    @pytest.mark.skip(reason="TimeoutError not raised")
     async def test_execute_timeout_async(self, async_local_box: LocalPyBox):
         timeout_code = """import time
 time.sleep(10)"""
-        # IDK why
-        if platform.system() == "Windows":
-            with pytest.raises(TimeoutError):
-                await async_local_box.arun(code=timeout_code, timeout=1)
-        else:
+        with pytest.raises(TimeoutError):
             await async_local_box.arun(code=timeout_code, timeout=1)
 
     async def test_partial_execution_failed_async(self, async_local_box: LocalPyBox):
