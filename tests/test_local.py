@@ -44,8 +44,7 @@ class TestLocalBox:
         assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
         local_manager.shutdown(box.kernel_id, now=True)
 
-    # NOTE: Share one box for all tests
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def local_box(self, local_manager: LocalPyBoxManager) -> Iterator[LocalPyBox]:
         _box = local_manager.start()
         yield _box
@@ -90,12 +89,17 @@ print(a)"""
         out: PyBoxOut = local_box.run(code=test_code)
         assert out.data == []
 
-    @pytest.mark.skip(reason="TimeoutError not raised")
+    # TODO: This UT is buggy.
+    # If we use function scope `LocalPyBox` fixture, and include this UT, the test process will hang.
+    # If we use class scope `LocalPyBox` fixture, and include this UT, then `TimeoutError` is not raised.
+    # If we only run this UT in the class, it works.
+    # The async version does not have this issue.
+    @pytest.mark.skip(reason="WIP")
     def test_execute_timeout(self, local_box: LocalPyBox):
         timeout_code = """import time
-time.sleep(10)"""
+time.sleep(60)"""
         with pytest.raises(TimeoutError):
-            local_box.run(code=timeout_code, timeout=1)
+            local_box.run(code=timeout_code, timeout=10)
 
     def test_partial_execution_failed(self, local_box: LocalPyBox):
         code = """a = 1
@@ -145,8 +149,7 @@ class TestAsyncLocalBox:
         assert len(out.data) == 1
         assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
 
-    # NOTE: Share one box for all tests
-    @pytest_asyncio.fixture(loop_scope="class", scope="class")
+    @pytest_asyncio.fixture(loop_scope="class")
     async def async_local_box(
         self,
         async_local_manager: LocalPyBoxManager,
@@ -194,13 +197,11 @@ print(a)"""
         out: PyBoxOut = await async_local_box.arun(code=test_code)
         assert out.data == []
 
-    # TODO: this fails
-    @pytest.mark.skip(reason="TimeoutError not raised")
     async def test_execute_timeout_async(self, async_local_box: LocalPyBox):
         timeout_code = """import time
-time.sleep(10)"""
+time.sleep(60)"""
         with pytest.raises(TimeoutError):
-            await async_local_box.arun(code=timeout_code, timeout=1)
+            await async_local_box.arun(code=timeout_code, timeout=10)
 
     async def test_partial_execution_failed_async(self, async_local_box: LocalPyBox):
         code = """a = 1

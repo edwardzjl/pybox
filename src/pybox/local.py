@@ -35,7 +35,7 @@ class LocalPyBox(BasePyBox):
             try:
                 self.client.wait_for_ready(timeout=timeout)
             except RuntimeError as e:
-                msg = "Kernel timed out gettting ready."
+                msg = "Timeout waiting for kernel ready."
                 raise TimeoutError(msg) from e
 
         msg_id = self.client.execute(code)
@@ -51,9 +51,10 @@ class LocalPyBox(BasePyBox):
                 # error execution may have extra messages, for example a stream std error
                 if (shell_msg["parent_header"]["msg_id"] != msg_id) or (shell_msg["msg_type"] != "execute_reply"):
                     continue
-            except queue.Empty:
+            except queue.Empty as e:
                 self.__interrupt_kernel()
-                return None
+                msg = "Timeout getting execute reply."
+                raise TimeoutError(msg) from e
             return ExecutionResponse.model_validate(shell_msg)
 
     def __get_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut:
@@ -112,7 +113,7 @@ class LocalPyBox(BasePyBox):
             try:
                 await self.client.wait_for_ready(timeout=timeout)
             except RuntimeError as e:
-                msg = "Kernel timed out gettting ready."
+                msg = "Timeout waiting for kernel ready."
                 raise TimeoutError(msg) from e
 
         msg_id = self.client.execute(code)
@@ -127,9 +128,10 @@ class LocalPyBox(BasePyBox):
                 # error execution may have extra messages, for example a stream std error
                 if (shell_msg["parent_header"]["msg_id"] != msg_id) or (shell_msg["msg_type"] != "execute_reply"):
                     continue
-            except queue.Empty:
+            except queue.Empty as e:
                 await self.__ainterrupt_kernel()
-                return None
+                msg = "Timeout getting execute reply."
+                raise TimeoutError(msg) from e
             return ExecutionResponse.model_validate(shell_msg)
 
     async def __aget_kernel_output(self, msg_id: str, **kwargs) -> PyBoxOut:
