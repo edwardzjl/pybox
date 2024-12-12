@@ -1,0 +1,112 @@
+name: Publish Kernel Images
+
+on:
+  push:
+    tags:
+      - v**
+  workflow_dispatch:  # Allows to trigger the workflow manually in GitHub UI
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract base image metadata
+        id: meta-base
+        uses: docker/metadata-action@v5.6.1
+        with:
+          images: ${{ env.REGISTRY }}/ipython-kernel
+          # semver has default priority 900, sha has default priority 100
+          # ref has default priority 600
+          # see <https://github.com/docker/metadata-action#priority-attribute>
+          # also, sha has a default prefix of '-sha'
+          # see <https://github.com/docker/metadata-action#typesha>
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,priority=850,prefix=
+      - name: Build and push base image
+        id: push-base
+        uses: docker/build-push-action@v6.10.0
+        with:
+          file: images/base/Dockerfile
+          context: images/base
+          push: true
+          tags: ${{ steps.meta-base.outputs.tags }}
+          labels: ${{ steps.meta-base.outputs.labels }}
+      - name: Generate base artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/ipython-kernel
+          subject-digest: ${{ steps.push-base.outputs.digest }}
+          push-to-registry: true
+      - name: Extract scipy image metadata
+        id: meta-scipy
+        uses: docker/metadata-action@v5.6.1
+        with:
+          images: ${{ env.REGISTRY }}/scipy-kernel
+          # semver has default priority 900, sha has default priority 100
+          # ref has default priority 600
+          # see <https://github.com/docker/metadata-action#priority-attribute>
+          # also, sha has a default prefix of '-sha'
+          # see <https://github.com/docker/metadata-action#typesha>
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,priority=850,prefix=
+      - name: Build and push scipy image
+        id: push-scipy
+        uses: docker/build-push-action@v6.10.0
+        with:
+          file: images/scipy/Dockerfile
+          context: images/scipy
+          push: true
+          tags: ${{ steps.meta-scipy.outputs.tags }}
+          labels: ${{ steps.meta-scipy.outputs.labels }}
+      - name: Generate scipy artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/scipy-kernel
+          subject-digest: ${{ steps.push-scipy.outputs.digest }}
+          push-to-registry: true
+      - name: Extract scipy-zh-cn image metadata
+        id: meta-scipy-zh-cn
+        uses: docker/metadata-action@v5.6.1
+        with:
+          images: ${{ env.REGISTRY }}/scipy-kernel
+          # semver has default priority 900, sha has default priority 100
+          # ref has default priority 600
+          # see <https://github.com/docker/metadata-action#priority-attribute>
+          # also, sha has a default prefix of '-sha'
+          # see <https://github.com/docker/metadata-action#typesha>
+          tags: |
+            type=semver,pattern={{version}}
+            type=sha,priority=850,prefix=,suffix=-zh-cn
+      - name: Build and push scipy-zh-cn image
+        id: push-scipy-zh-cn
+        uses: docker/build-push-action@v6.10.0
+        with:
+          file: images/scipy-zh-cn/Dockerfile
+          context: images/scipy-zh-cn
+          push: true
+          tags: ${{ steps.meta-scipy-zh-cn.outputs.tags }}
+          labels: ${{ steps.meta-scipy-zh-cn.outputs.labels }}
+      - name: Generate scipy-zh-cn artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.REGISTRY }}/scipy-kernel
+          subject-digest: ${{ steps.push-scipy-zh-cn.outputs.digest }}
+          push-to-registry: true
