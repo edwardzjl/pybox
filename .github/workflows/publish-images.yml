@@ -30,7 +30,7 @@ jobs:
         id: meta-base
         uses: docker/metadata-action@v5.6.1
         with:
-          images: ${{ env.REGISTRY }}/ipython-kernel
+          images: ${{ env.REGISTRY }}/edwardzjl/ipython-kernel
           # semver has default priority 900, sha has default priority 100
           # ref has default priority 600
           # see <https://github.com/docker/metadata-action#priority-attribute>
@@ -51,14 +51,14 @@ jobs:
       - name: Generate base artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/ipython-kernel
+          subject-name: ${{ env.REGISTRY }}/edwardzjl/ipython-kernel
           subject-digest: ${{ steps.push-base.outputs.digest }}
           push-to-registry: true
       - name: Extract scipy image metadata
         id: meta-scipy
         uses: docker/metadata-action@v5.6.1
         with:
-          images: ${{ env.REGISTRY }}/scipy-kernel
+          images: ${{ env.REGISTRY }}/edwardzjl/scipy-kernel
           # semver has default priority 900, sha has default priority 100
           # ref has default priority 600
           # see <https://github.com/docker/metadata-action#priority-attribute>
@@ -79,14 +79,14 @@ jobs:
       - name: Generate scipy artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/scipy-kernel
+          subject-name: ${{ env.REGISTRY }}/edwardzjl/scipy-kernel
           subject-digest: ${{ steps.push-scipy.outputs.digest }}
           push-to-registry: true
       - name: Extract scipy-zh-cn image metadata
         id: meta-scipy-zh-cn
         uses: docker/metadata-action@v5.6.1
         with:
-          images: ${{ env.REGISTRY }}/scipy-kernel
+          images: ${{ env.REGISTRY }}/edwardzjl/scipy-kernel
           # semver has default priority 900, sha has default priority 100
           # ref has default priority 600
           # see <https://github.com/docker/metadata-action#priority-attribute>
@@ -107,6 +107,6 @@ jobs:
       - name: Generate scipy-zh-cn artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
-          subject-name: ${{ env.REGISTRY }}/scipy-kernel
+          subject-name: ${{ env.REGISTRY }}/edwardzjl/scipy-kernel
           subject-digest: ${{ steps.push-scipy-zh-cn.outputs.digest }}
           push-to-registry: true
