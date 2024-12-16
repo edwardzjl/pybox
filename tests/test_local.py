@@ -26,29 +26,37 @@ class TestLocalBox:
         local_manager.shutdown(kernel_id, now=True)
         assert kernel_id not in local_manager.kernel_manager
 
+    def test_box_lifecycle_w_context_manager(self, local_manager: LocalPyBoxManager):
+        with local_manager.start() as box:
+            kernel_id = box.kernel_id
+
+            assert kernel_id in local_manager.kernel_manager
+            assert local_manager.kernel_manager.is_alive(kernel_id)
+
+        assert kernel_id not in local_manager.kernel_manager
+        with pytest.raises(KeyError):
+            assert not local_manager.kernel_manager.is_alive(kernel_id)
+
     def test_start_w_id(self, local_manager: LocalPyBoxManager):
         kernel_id = str(uuid4())
-        box = local_manager.start(kernel_id)
-        assert box.kernel_id == kernel_id
-        assert kernel_id in local_manager.kernel_manager
-        assert local_manager.kernel_manager.is_alive(box.kernel_id)
-        local_manager.shutdown(box.kernel_id)
+        with local_manager.start(kernel_id) as box:
+            assert box.kernel_id == kernel_id
+            assert kernel_id in local_manager.kernel_manager
+            assert local_manager.kernel_manager.is_alive(box.kernel_id)
 
     def test_set_cwd(self, local_manager: LocalPyBoxManager):
         # even we don't set the cwd, it defaults to os.getcwd()
         # in order to test this is working, we need to change the cwd to a cross platform path
-        box = local_manager.start(cwd=os.path.expanduser("~"))
-        test_code = "import os\nprint(os.getcwd())"
-        out: PyBoxOut = box.run(code=test_code)
-        assert len(out.data) == 1
-        assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
-        local_manager.shutdown(box.kernel_id, now=True)
+        with local_manager.start(cwd=os.path.expanduser("~")) as box:
+            test_code = "import os\nprint(os.getcwd())"
+            out: PyBoxOut = box.run(code=test_code)
+            assert len(out.data) == 1
+            assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
 
     @pytest.fixture
     def local_box(self, local_manager: LocalPyBoxManager) -> Iterator[LocalPyBox]:
-        _box = local_manager.start()
-        yield _box
-        local_manager.shutdown(_box.kernel_id, now=True)
+        with local_manager.start() as _box:
+            yield _box
 
     def test_code_execute(self, local_box: LocalPyBox):
         test_code = "print('test')"
@@ -132,31 +140,40 @@ class TestAsyncLocalBox:
         await async_local_manager.ashutdown(kernel_id)
         assert kernel_id not in async_local_manager.async_kernel_manager
 
+    async def test_box_lifecycle_w_async_context_manager(self, async_local_manager: LocalPyBoxManager):
+        async with await async_local_manager.astart() as box:
+            kernel_id = box.kernel_id
+
+            assert kernel_id in async_local_manager.async_kernel_manager
+            assert await async_local_manager.async_kernel_manager.is_alive(kernel_id)
+
+        assert kernel_id not in async_local_manager.async_kernel_manager
+        with pytest.raises(KeyError):
+            assert not await async_local_manager.async_kernel_manager.is_alive(kernel_id)
+
     async def test_start_async_w_id(self, async_local_manager: LocalPyBoxManager):
         kernel_id = str(uuid4())
-        box = await async_local_manager.astart(kernel_id)
-        assert box.kernel_id == kernel_id
-        assert kernel_id in async_local_manager.async_kernel_manager
-        assert await async_local_manager.async_kernel_manager.is_alive(kernel_id)
-        await async_local_manager.ashutdown(kernel_id)
+        async with await async_local_manager.astart(kernel_id) as box:
+            assert box.kernel_id == kernel_id
+            assert kernel_id in async_local_manager.async_kernel_manager
+            assert await async_local_manager.async_kernel_manager.is_alive(kernel_id)
 
     async def test_set_cwd_async(self, async_local_manager: LocalPyBoxManager):
         # even we don't set the cwd, it defaults to os.getcwd()
         # in order to test this is working, we need to change the cwd to a cross platform path
-        box = await async_local_manager.astart(cwd=os.path.expanduser("~"))
-        test_code = "import os\nprint(os.getcwd())"
-        out: PyBoxOut = await box.arun(code=test_code)
-        assert len(out.data) == 1
-        assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
+        async with await async_local_manager.astart(cwd=os.path.expanduser("~")) as box:
+            test_code = "import os\nprint(os.getcwd())"
+            out: PyBoxOut = await box.arun(code=test_code)
+            assert len(out.data) == 1
+            assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
 
     @pytest_asyncio.fixture(loop_scope="class")
     async def async_local_box(
         self,
         async_local_manager: LocalPyBoxManager,
     ) -> AsyncIterator[LocalPyBox]:
-        _box = await async_local_manager.astart()
-        yield _box
-        await async_local_manager.ashutdown(_box.kernel_id, now=True)
+        async with await async_local_manager.astart() as _box:
+            yield _box
 
     async def test_code_execute_async(self, async_local_box: LocalPyBox):
         test_code = "print('test')"
