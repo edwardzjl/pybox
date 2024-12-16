@@ -8,7 +8,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 import aiohttp
 import requests
 from dotenv import dotenv_values
-from websockets.client import connect as aconnect
+from websockets.asyncio.client import connect as aconnect
 from websockets.sync.client import connect
 
 from pybox.base import BasePyBox, BasePyBoxManager
