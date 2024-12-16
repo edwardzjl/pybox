@@ -52,6 +52,14 @@ packages = ["src/pybox"]
 [tool.hatch.version]
 path = "src/pybox/__about__.py"
 
+[tool.hatch.envs.docs]
+dependencies = [
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mkdocs-jupyter",
+  "mkdocs-material",
+]
+
 [[tool.hatch.envs.hatch-test.matrix]]
 feature = ["local"]
 

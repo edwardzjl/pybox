@@ -9,8 +9,6 @@ PyBox manages Python code sandboxes and provides a clean interface for interacti
 
 There are two main abstractions, `pybox.base.BasePyBoxManager` and `pybox.base.BasePyBox`, The `PyBoxManager` is responsible for managing the lifecycle of the sandboxes, while the `PyBox` is responsible for executing code within the sandbox.
 
-Read more about PyBox at <https://edwardzjl.github.io/pybox/>
-
 ## License
 
 `pybox` is distributed under the terms of the [Apache 2.0](https://spdx.org/licenses/Apache-2.0.html) license.

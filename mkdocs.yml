@@ -1,0 +1,48 @@
+site_name: PyBox
+
+theme:
+  name: "material"
+  features:
+    - navigation.footer
+    - search.highlight
+    - search.share
+    - content.action.edit
+    - content.action.view
+  icon:
+    edit: material/pencil
+    view: material/eye
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - mkdocs-jupyter
+  - mkdocstrings
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - toc:
+      permalink: "#"
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+
+repo_name: edwardzjl/pybox
+repo_url: https://github.com/edwardzjl/pybox
+edit_uri: edit/main/docs/
