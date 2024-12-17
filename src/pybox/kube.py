@@ -7,7 +7,7 @@ from dotenv import dotenv_values
 from jkclient import CreateKernelRequest, JupyterKernelClient, Kernel
 from jupyter_client import AsyncKernelClient, BlockingKernelClient
 
-from pybox import LocalPyBox
+from pybox import AsyncLocalPyBox, LocalPyBox
 from pybox.base import BasePyBoxManager
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ class KubePyBoxManager(BasePyBoxManager):
 
         return LocalPyBox(kernel_id=kernel_id, client=kernel_client)
 
-    async def astart(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> LocalPyBox:
+    async def astart(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> AsyncLocalPyBox:
         """Retrieve an existing kernel or create a new one in kubernetes
 
         Args:
@@ -85,7 +85,7 @@ class KubePyBoxManager(BasePyBoxManager):
         kernel_client = AsyncKernelClient()
         kernel_client.load_connection_info(kernel.conn_info)
 
-        return LocalPyBox(kernel_id=kernel_id, client=kernel_client)
+        return AsyncLocalPyBox(kernel_id=kernel_id, client=kernel_client)
 
     def shutdown(self, kernel_id: str, **kwargs) -> None:
         """Shutdown the kernel in kubernetes.

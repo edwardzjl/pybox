@@ -67,7 +67,50 @@ class RemotePyBox(BasePyBox):
                         break
         return pybox_out
 
-    async def arun(self, code: str) -> PyBoxOut:
+    def handle_init_message(self):
+        # There will be 3 messages send by the kernel after the connection is established
+        # A common pattern is msg["parent_header"]["msg_type"] == "kernel_info_request"
+        # and msg["content"]["execution_state"] == "busy" for fist message and "idle" for the following 2 message
+        session_id = None
+        parent_msg_id = None
+        with connect(self.ws_url) as conn:
+            while message := conn.recv():
+                logger.debug("kernel init message: %s", message)
+                response = ExecutionResponse.model_validate_json(message)
+
+                # Some sanity check
+                if session_id is None:
+                    session_id = response.header.session
+                    logger.debug(
+                        "kernel [%s] responds with session: %s",
+                        self.kernel_id,
+                        session_id,
+                    )
+                elif session_id != response.header.session:
+                    logger.warning(
+                        "Found messages with multiple session ids in one init progress! previous: %s, current: %s",
+                        session_id,
+                        response.header.session,
+                    )
+
+                if response.msg_type != "status" or response.parent_header.msg_type != "kernel_info_request":
+                    logger.warning("Unexpected init message: %s", message)
+
+                if response.content.execution_state == "busy":
+                    # This should be the first message that we received
+                    parent_msg_id = response.parent_header.msg_id
+                if (
+                    parent_msg_id
+                    and response.parent_header.msg_id == parent_msg_id
+                    and response.content.execution_state == "idle"
+                ):
+                    # This message indicates the kernel is ready
+                    break
+                # And we ignored 1 message that I did not find too much related to the above 2 messages
+
+
+class AsyncRemotePyBox(RemotePyBox):
+    async def run(self, code: str) -> PyBoxOut:
         payload = ExecutionRequest.of_code(code)
         logger.debug("kernel execution payload: %s", payload.model_dump_json())
         pybox_out = PyBoxOut()
@@ -109,48 +152,7 @@ class RemotePyBox(BasePyBox):
                             break
         return pybox_out
 
-    def handler_init_message(self):
-        # There will be 3 messages send by the kernel after the connection is established
-        # A common pattern is msg["parent_header"]["msg_type"] == "kernel_info_request"
-        # and msg["content"]["execution_state"] == "busy" for fist message and "idle" for the following 2 message
-        session_id = None
-        parent_msg_id = None
-        with connect(self.ws_url) as conn:
-            while message := conn.recv():
-                logger.debug("kernel init message: %s", message)
-                response = ExecutionResponse.model_validate_json(message)
-
-                # Some sanity check
-                if session_id is None:
-                    session_id = response.header.session
-                    logger.debug(
-                        "kernel [%s] responds with session: %s",
-                        self.kernel_id,
-                        session_id,
-                    )
-                elif session_id != response.header.session:
-                    logger.warning(
-                        "Found messages with multiple session ids in one init progress! previous: %s, current: %s",
-                        session_id,
-                        response.header.session,
-                    )
-
-                if response.msg_type != "status" or response.parent_header.msg_type != "kernel_info_request":
-                    logger.warning("Unexpected init message: %s", message)
-
-                if response.content.execution_state == "busy":
-                    # This should be the first message that we received
-                    parent_msg_id = response.parent_header.msg_id
-                if (
-                    parent_msg_id
-                    and response.parent_header.msg_id == parent_msg_id
-                    and response.content.execution_state == "idle"
-                ):
-                    # This message indicates the kernel is ready
-                    break
-                # And we ignored 1 message that I did not find too much related to the above 2 messages
-
-    async def ahandler_init_message(self):
+    async def ahandle_init_message(self):
         # There will be 3 messages send by the kernel after the connection is established
         # A common pattern is msg["parent_header"]["msg_type"] == "kernel_info_request"
         # and msg["content"]["execution_state"] == "busy" for fist message and "idle" for the following 2 message
@@ -235,7 +237,7 @@ class RemotePyBoxManager(BasePyBoxManager):
         kernel = Kernel.model_validate_json(response.text)
         box = RemotePyBox(kernel, self.get_ws_url(kernel.id))
         try:
-            box.handler_init_message()
+            box.handle_init_message()
         except Exception:
             # We may encounter some error during handling the init message, but we can still use the kernel
             logger.exception("Error swallowing kernel init messages")
@@ -246,7 +248,7 @@ class RemotePyBoxManager(BasePyBoxManager):
         self,
         kernel_id: str | None = None,
         cwd: str | None = None,
-    ) -> RemotePyBox:
+    ) -> AsyncRemotePyBox:
         env = self.kernel_env.copy()
         if kernel_id:
             env["KERNEL_ID"] = kernel_id
@@ -270,9 +272,9 @@ class RemotePyBoxManager(BasePyBoxManager):
                     error_msg = f"Error starting kernel: {response.status}\n{response.content}"
                     raise RuntimeError(error_msg)
         kernel = Kernel.model_validate_json(resp_text)
-        box = RemotePyBox(kernel, self.get_ws_url(kernel.id))
+        box = AsyncRemotePyBox(kernel, self.get_ws_url(kernel.id))
         try:
-            await box.ahandler_init_message()
+            await box.ahandle_init_message()
         except Exception:
             # We may encounter some error during handling the init message, but we can still use the kernel
             logger.exception("Error swallowing kernel init messages")

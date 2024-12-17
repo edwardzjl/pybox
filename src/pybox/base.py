@@ -27,21 +27,6 @@ class BasePyBox(ABC):
             TimeoutError: if the code execution times out
         """
 
-    async def arun(self, code: str, **kwargs) -> PyBoxOut:
-        """Asynchoronously execute code in the PyBox and return the result.
-        Default implementation is to call the synchronous `run` method.
-
-        Args:
-            code (str): code to execute
-
-        Returns:
-            PyBoxOut: result of the code execution
-
-        Raises:
-            TimeoutError: if the code execution times out
-        """
-        return self.run(code=code, **kwargs)
-
 
 class BasePyBoxManager(ABC):
     """Abstract Base class for managing kernels"""
