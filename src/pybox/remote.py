@@ -244,7 +244,28 @@ class RemotePyBoxManager(BasePyBoxManager):
         logger.info("Started kernel with id %s", kernel.id)
         return box
 
-    async def astart(
+    def shutdown(
+        self,
+        kernel_id: str,
+    ) -> None:
+        response = requests.delete(urljoin(str(self.host), f"/api/kernels/{kernel_id}"), timeout=60)
+        if not response.ok:
+            if response.status_code == requests.codes.not_found:
+                logger.warning("kernel %s not found", kernel_id)
+            else:
+                err_msg = f"Error deleting kernel {kernel_id}: {response.status_code}\n{response.content}"
+                raise RuntimeError(err_msg)
+        logger.info("Kernel %s shut down", kernel_id)
+
+    def get_ws_url(self, kernel_id: str) -> str:
+        base = urlparse(self.host)
+        ws_scheme = "wss" if base.scheme == "https" else "ws"
+        ws_base = urlunparse(base._replace(scheme=ws_scheme))
+        return urljoin(ws_base, f"/api/kernels/{kernel_id}/channels")
+
+
+class AsyncRemotePyBoxManager(RemotePyBoxManager):
+    async def start(
         self,
         kernel_id: str | None = None,
         cwd: str | None = None,
@@ -281,20 +302,7 @@ class RemotePyBoxManager(BasePyBoxManager):
         logger.info("Started kernel with id %s", kernel.id)
         return box
 
-    def shutdown(
-        self,
-        kernel_id: str,
-    ) -> None:
-        response = requests.delete(urljoin(str(self.host), f"/api/kernels/{kernel_id}"), timeout=60)
-        if not response.ok:
-            if response.status_code == requests.codes.not_found:
-                logger.warning("kernel %s not found", kernel_id)
-            else:
-                err_msg = f"Error deleting kernel {kernel_id}: {response.status_code}\n{response.content}"
-                raise RuntimeError(err_msg)
-        logger.info("Kernel %s shut down", kernel_id)
-
-    async def ashutdown(
+    async def shutdown(
         self,
         kernel_id: str,
     ) -> None:
@@ -308,9 +316,3 @@ class RemotePyBoxManager(BasePyBoxManager):
                     err_msg = f"Error deleting kernel {kernel_id}: {response.status}\n{response.content}"
                     raise RuntimeError(err_msg)
         logger.info("Kernel %s shut down", kernel_id)
-
-    def get_ws_url(self, kernel_id: str) -> str:
-        base = urlparse(self.host)
-        ws_scheme = "wss" if base.scheme == "https" else "ws"
-        ws_base = urlunparse(base._replace(scheme=ws_scheme))
-        return urljoin(ws_base, f"/api/kernels/{kernel_id}/channels")

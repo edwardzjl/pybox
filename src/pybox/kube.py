@@ -58,7 +58,17 @@ class KubePyBoxManager(BasePyBoxManager):
 
         return LocalPyBox(kernel_id=kernel_id, client=kernel_client)
 
-    async def astart(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> AsyncLocalPyBox:
+    def shutdown(self, kernel_id: str, **kwargs) -> None:
+        """Shutdown the kernel in kubernetes.
+
+        Args:
+            kernel_id (str): kernel_id
+        """
+        self.client.delete_by_kernel_id(kernel_id, **kwargs)
+
+
+class AsyncKubePyBoxManager(KubePyBoxManager):
+    async def start(self, kernel_id: str | None = None, cwd: str | None = None, **kwargs) -> AsyncLocalPyBox:
         """Retrieve an existing kernel or create a new one in kubernetes
 
         Args:
@@ -87,15 +97,7 @@ class KubePyBoxManager(BasePyBoxManager):
 
         return AsyncLocalPyBox(kernel_id=kernel_id, client=kernel_client)
 
-    def shutdown(self, kernel_id: str, **kwargs) -> None:
-        """Shutdown the kernel in kubernetes.
-
-        Args:
-            kernel_id (str): kernel_id
-        """
-        self.client.delete_by_kernel_id(kernel_id, **kwargs)
-
-    async def ashutdown(self, kernel_id: str, **kwargs) -> None:
+    async def shutdown(self, kernel_id: str, **kwargs) -> None:
         """Shutdown the kubernetes kernel by kernel id.
 
         Args:
