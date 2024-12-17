@@ -46,21 +46,6 @@ class BasePyBoxManager(ABC):
             Kernel: An iPython kernel that executes code.
         """
 
-    async def astart(
-        self,
-        kernel_id: str | None = None,
-        **kwargs,
-    ) -> BasePyBox:
-        """Retrieve an existing kernel or create a new one.
-
-        Args:
-            kernel_id (str): kernel id.
-
-        Returns:
-            Kernel: An iPython kernel that executes code.
-        """
-        return self.start(kernel_id=kernel_id, **kwargs)
-
     @abstractmethod
     def shutdown(
         self,
@@ -69,11 +54,3 @@ class BasePyBoxManager(ABC):
     ) -> None:
         """Shutdown the kernel."""
         ...
-
-    async def ashutdown(
-        self,
-        kernel_id: str,
-        **kwargs,
-    ) -> None:
-        """Shutdown the kernel."""
-        self.shutdown(kernel_id=kernel_id, **kwargs)

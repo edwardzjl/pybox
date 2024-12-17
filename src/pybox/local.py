@@ -13,7 +13,6 @@ except ImportError:
 
 from jupyter_client import AsyncKernelManager, AsyncMultiKernelManager, KernelManager, MultiKernelManager
 from jupyter_client.multikernelmanager import DuplicateKernelError
-from jupyter_core.utils import run_sync
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -297,7 +296,6 @@ class LocalPyBoxManager(BasePyBoxManager):
     def __init__(
         self,
         kernel_manager: MultiKernelManager | None = None,
-        async_kernel_manager: AsyncMultiKernelManager | None = None,
         profile_dir: str | None = None,
     ):
         self.profile_dir = profile_dir
@@ -305,41 +303,12 @@ class LocalPyBoxManager(BasePyBoxManager):
             self.kernel_manager = MultiKernelManager()
         else:
             self.kernel_manager = kernel_manager
-        if async_kernel_manager is None:
-            self.async_kernel_manager = AsyncMultiKernelManager()
-        else:
-            self.async_kernel_manager = async_kernel_manager
-
-        # TODO: It works well in async scenarios but blocks in sync scenarios, so it should be disabled now.
-        # weakref.finalize(self, self.cleanup)
-
-    async def acleanup(self, *, now: bool = False):
-        """clean up all the kernels."""
-        logger.info("Shutting down all sync kernels")
-        self.shutdown_all(now=now)
-
-        # close the async kernels
-        logger.info("Shutting down all async kernels")
-        await self.ashutdown_all(now=now)
-
-    cleanup = run_sync(acleanup)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.cleanup(now=True)
-        if exc_type is not None:
-            return False
-
-        return True
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.acleanup(now=True)
-
         if exc_type is not None:
             return False
 
@@ -364,7 +333,49 @@ class LocalPyBoxManager(BasePyBoxManager):
         km = self.kernel_manager.get_kernel(kernel_id=kid)
         return LocalPyBox(km=km, mkm=self.kernel_manager)
 
-    async def astart(
+    def shutdown(
+        self,
+        kernel_id: str,
+        *,
+        now: bool = False,
+        restart: bool = False,
+    ) -> None:
+        try:
+            self.kernel_manager.shutdown_kernel(kernel_id=kernel_id, now=now, restart=restart)
+        except KeyError:
+            logger.warning("kernel %s not found", kernel_id)
+        else:
+            logger.info("Kernel %s shut down", kernel_id)
+
+    def shutdown_all(self, *args, **kwargs):
+        if len(self.kernel_manager):
+            self.kernel_manager.shutdown_all(*args, **kwargs)
+
+
+class AsyncLocalPyBoxManager(LocalPyBoxManager):
+    def __init__(
+        self,
+        async_kernel_manager: AsyncMultiKernelManager | None = None,
+        profile_dir: str | None = None,
+    ):
+        self.profile_dir = profile_dir
+        if async_kernel_manager is None:
+            self.async_kernel_manager = AsyncMultiKernelManager()
+        else:
+            self.async_kernel_manager = async_kernel_manager
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.acleanup(now=True)
+
+        if exc_type is not None:
+            return False
+
+        return True
+
+    async def start(
         self,
         kernel_id: str | None = None,
         **kwargs,
@@ -384,21 +395,7 @@ class LocalPyBoxManager(BasePyBoxManager):
         km = self.async_kernel_manager.get_kernel(kernel_id=kid)
         return AsyncLocalPyBox(km=km, mkm=self.async_kernel_manager)
 
-    def shutdown(
-        self,
-        kernel_id: str,
-        *,
-        now: bool = False,
-        restart: bool = False,
-    ) -> None:
-        try:
-            self.kernel_manager.shutdown_kernel(kernel_id=kernel_id, now=now, restart=restart)
-        except KeyError:
-            logger.warning("kernel %s not found", kernel_id)
-        else:
-            logger.info("Kernel %s shut down", kernel_id)
-
-    async def ashutdown(
+    async def shutdown(
         self,
         kernel_id: str,
         *,
@@ -412,10 +409,6 @@ class LocalPyBoxManager(BasePyBoxManager):
         else:
             logger.info("Kernel %s shut down", kernel_id)
 
-    def shutdown_all(self, *args, **kwargs):
-        if len(self.kernel_manager):
-            self.kernel_manager.shutdown_all(*args, **kwargs)
-
-    async def ashutdown_all(self, *args, **kwargs):
+    async def shutdown_all(self, *args, **kwargs):
         if len(self.async_kernel_manager):
             await self.async_kernel_manager.shutdown_all(*args, **kwargs)

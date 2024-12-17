@@ -2,12 +2,15 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from pybox.local import AsyncLocalPyBox, LocalPyBox, LocalPyBoxManager
-from pybox.remote import RemotePyBox, RemotePyBoxManager
+from pybox.local import AsyncLocalPyBox, AsyncLocalPyBoxManager, LocalPyBox, LocalPyBoxManager
+from pybox.remote import AsyncRemotePyBox, AsyncRemotePyBoxManager, RemotePyBox, RemotePyBoxManager
 from pybox.schema import PyBoxOut
 
 __all__ = [
     "AsyncLocalPyBox",
+    "AsyncLocalPyBoxManager",
+    "AsyncRemotePyBox",
+    "AsyncRemotePyBoxManager",
     "LocalPyBox",
     "LocalPyBoxManager",
     "RemotePyBox",
