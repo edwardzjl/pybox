@@ -11,7 +11,7 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-from jupyter_client import AsyncMultiKernelManager, KernelManager, MultiKernelManager
+from jupyter_client import AsyncKernelManager, AsyncMultiKernelManager, KernelManager, MultiKernelManager
 from jupyter_client.multikernelmanager import DuplicateKernelError
 from jupyter_core.utils import run_sync
 
@@ -52,18 +52,6 @@ class LocalPyBox(BasePyBox):
         # If we use `self.km.shutdown_kernel(now=True)`, the kernel_id will last in the multi_kernel_manager.
         if self.mkm is not None:
             self.mkm.shutdown_kernel(kernel_id=self.kernel_id, now=True)
-        # 返回 False 让异常继续传播, 返回 True 会抑制异常
-        return False
-
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
-    ) -> bool:
-        # If we use `await self.km.shutdown_kernel(now=True)`, the kernel_id will last in the multi_kernel_manager.
-        if self.mkm is not None:
-            await self.mkm.shutdown_kernel(kernel_id=self.kernel_id, now=True)
         # 返回 False 让异常继续传播, 返回 True 会抑制异常
         return False
 
@@ -145,7 +133,58 @@ class LocalPyBox(BasePyBox):
                 msg = "Kernel execution timed out."
                 raise TimeoutError(msg) from e
 
-    async def arun(self, code: str, timeout: int = 60) -> PyBoxOut:
+    def __interrupt_kernel(self) -> None:
+        """send an interrupt message to the kernel."""
+        if SYSTEM_PLATFORM == "Windows":
+            logger.warning("Interrupt signal is not supported on Windows.")
+            return
+        try:
+            interrupt_msg = self.client.session.msg("interrupt_request", content={})
+            self.client.control_channel.send(interrupt_msg)
+            control_msg = self.client.get_control_msg(timeout=5)
+            # TODO: Do you need to determine whether the parent id is equal to the interrupt message id?
+            # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#kernel-interrupt>
+            if control_msg["msg_type"] == "interrupt_reply":
+                status = control_msg["content"]["status"]
+                if status == "ok":
+                    logger.info(
+                        "Kernel %s interrupt signal sent successfully.",
+                        self.kernel_id,
+                    )
+                else:
+                    logger.warning(
+                        "Kernel %s interrupt signal sent failed: %s",
+                        self.kernel_id,
+                        status,
+                    )
+        except Exception as e:  # noqa: BLE001
+            # TODO: What should I do if sending an interrupt message times out or fails?
+            logger.warning(
+                "Failed to send interrupt message to kernel %s: %s",
+                self.kernel_id,
+                e,
+            )
+
+
+class AsyncLocalPyBox(LocalPyBox):
+    def __init__(self, km: AsyncKernelManager, mkm: AsyncMultiKernelManager | None = None):
+        self.km = km
+        self.mkm = mkm
+        self.client = self.km.client()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, traceback: TracebackType | None
+    ) -> bool:
+        # If we use `await self.km.shutdown_kernel(now=True)`, the kernel_id will last in the multi_kernel_manager.
+        if self.mkm is not None:
+            await self.mkm.shutdown_kernel(kernel_id=self.kernel_id, now=True)
+        # 返回 False 让异常继续传播, 返回 True 会抑制异常
+        return False
+
+    async def run(self, code: str, timeout: int = 60) -> PyBoxOut:
         if not self.client.channels_running:
             # `wait_for_ready` raises a RuntimeError if the kernel is not ready
             try:
@@ -220,38 +259,6 @@ class LocalPyBox(BasePyBox):
                 logger.warning("No iopub message received.")
                 msg = "Kernel execution timed out."
                 raise TimeoutError(msg) from e
-
-    def __interrupt_kernel(self) -> None:
-        """send an interrupt message to the kernel."""
-        if SYSTEM_PLATFORM == "Windows":
-            logger.warning("Interrupt signal is not supported on Windows.")
-            return
-        try:
-            interrupt_msg = self.client.session.msg("interrupt_request", content={})
-            self.client.control_channel.send(interrupt_msg)
-            control_msg = self.client.get_control_msg(timeout=5)
-            # TODO: Do you need to determine whether the parent id is equal to the interrupt message id?
-            # See <https://jupyter-client.readthedocs.io/en/latest/messaging.html#kernel-interrupt>
-            if control_msg["msg_type"] == "interrupt_reply":
-                status = control_msg["content"]["status"]
-                if status == "ok":
-                    logger.info(
-                        "Kernel %s interrupt signal sent successfully.",
-                        self.kernel_id,
-                    )
-                else:
-                    logger.warning(
-                        "Kernel %s interrupt signal sent failed: %s",
-                        self.kernel_id,
-                        status,
-                    )
-        except Exception as e:  # noqa: BLE001
-            # TODO: What should I do if sending an interrupt message times out or fails?
-            logger.warning(
-                "Failed to send interrupt message to kernel %s: %s",
-                self.kernel_id,
-                e,
-            )
 
     async def __ainterrupt_kernel(self) -> None:
         """send an interrupt message to the kernel."""
@@ -361,7 +368,7 @@ class LocalPyBoxManager(BasePyBoxManager):
         self,
         kernel_id: str | None = None,
         **kwargs,
-    ) -> LocalPyBox:
+    ) -> AsyncLocalPyBox:
         if kernel_id is None:
             kernel_id = str(uuid4())
         logger.debug("Starting new kernel with ID %s", kernel_id)
@@ -375,7 +382,7 @@ class LocalPyBoxManager(BasePyBoxManager):
             # it's OK if the kernel already exists
             kid = kernel_id
         km = self.async_kernel_manager.get_kernel(kernel_id=kid)
-        return LocalPyBox(km=km, mkm=self.async_kernel_manager)
+        return AsyncLocalPyBox(km=km, mkm=self.async_kernel_manager)
 
     def shutdown(
         self,

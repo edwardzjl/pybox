@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from pybox import LocalPyBoxManager, PyBoxOut
-from pybox.local import LocalPyBox
+from pybox.local import AsyncLocalPyBox, LocalPyBox
 
 
 class TestLocalBox:
@@ -163,7 +163,7 @@ class TestAsyncLocalBox:
         # in order to test this is working, we need to change the cwd to a cross platform path
         async with await async_local_manager.astart(cwd=os.path.expanduser("~")) as box:
             test_code = "import os\nprint(os.getcwd())"
-            out: PyBoxOut = await box.arun(code=test_code)
+            out: PyBoxOut = await box.run(code=test_code)
             assert len(out.data) == 1
             assert os.path.expanduser("~") + "\n" == out.data[0]["text/plain"]
 
@@ -171,13 +171,13 @@ class TestAsyncLocalBox:
     async def async_local_box(
         self,
         async_local_manager: LocalPyBoxManager,
-    ) -> AsyncIterator[LocalPyBox]:
+    ) -> AsyncIterator[AsyncLocalPyBox]:
         async with await async_local_manager.astart() as _box:
             yield _box
 
     async def test_code_execute_async(self, async_local_box: LocalPyBox):
         test_code = "print('test')"
-        out = await async_local_box.arun(code=test_code)
+        out = await async_local_box.run(code=test_code)
 
         assert len(out.data) == 1
         assert out.data[0]["text/plain"] == "test\n"
@@ -185,10 +185,10 @@ class TestAsyncLocalBox:
     async def test_variable_reuse_async(self, async_local_box: LocalPyBox):
         code_round1 = """a = 1
 print(a)"""
-        await async_local_box.arun(code=code_round1)
+        await async_local_box.run(code=code_round1)
         code_round2 = """a += 1
 print(a)"""
-        out: PyBoxOut = await async_local_box.arun(code=code_round2)
+        out: PyBoxOut = await async_local_box.run(code=code_round2)
 
         assert len(out.data) == 1
         assert out.data[0]["text/plain"] == "2\n"
@@ -197,35 +197,35 @@ print(a)"""
         code = """a = 1
 print(a)
 print(a)"""
-        out: PyBoxOut = await async_local_box.arun(code=code)
+        out: PyBoxOut = await async_local_box.run(code=code)
 
         assert len(out.data) == 1
         assert out.data[0]["text/plain"] == "1\n1\n"
 
     async def test_execute_exception_async(self, async_local_box: LocalPyBox):
         division_by_zero = "1 / 0"
-        out: PyBoxOut = await async_local_box.arun(code=division_by_zero)
+        out: PyBoxOut = await async_local_box.run(code=division_by_zero)
         assert out.data == []
         assert out.error is not None
         assert out.error.ename == "ZeroDivisionError"
 
     async def test_no_output_async(self, async_local_box: LocalPyBox):
         test_code = "a = 1"
-        out: PyBoxOut = await async_local_box.arun(code=test_code)
+        out: PyBoxOut = await async_local_box.run(code=test_code)
         assert out.data == []
 
     async def test_execute_timeout_async(self, async_local_box: LocalPyBox):
         timeout_code = """import time
 time.sleep(60)"""
         with pytest.raises(TimeoutError):
-            await async_local_box.arun(code=timeout_code, timeout=10)
+            await async_local_box.run(code=timeout_code, timeout=10)
 
     async def test_partial_execution_failed_async(self, async_local_box: LocalPyBox):
         code = """a = 1
 b = 2
 print(a)
 print(c)"""
-        out: PyBoxOut = await async_local_box.arun(code=code)
+        out: PyBoxOut = await async_local_box.run(code=code)
 
         assert len(out.data) == 1
         assert out.data[0]["text/plain"] == "1\n"
