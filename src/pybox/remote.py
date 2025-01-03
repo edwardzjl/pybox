@@ -307,7 +307,7 @@ class AsyncRemotePyBoxManager(RemotePyBoxManager):
         kernel_id: str,
     ) -> None:
         async with aiohttp.ClientSession() as session, session.delete(
-            urljoin(str(self.host), "/api/kernels/{kernel_id}")
+            urljoin(str(self.host), f"/api/kernels/{kernel_id}")
         ) as response:
             if not response.ok:
                 if response.status == requests.codes.not_found:
