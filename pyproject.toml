@@ -26,6 +26,8 @@ classifiers = [
 ]
 dependencies = [
   "aiohttp[speedups]>=3.9.3",
+  "jkclient>=0.0.5",
+  "jupyter-client>=8.6.0",
   "python-dotenv>=1",
   "pydantic>=2",
   "requests>=2",
@@ -37,7 +39,6 @@ local = [
   # kernel dependencies
   "ipython>=8.18.1",
   "ipykernel>=6.26.0",
-  "jupyter-client>=8.6.0",
 ]
 
 [project.urls]
